@@ -2,12 +2,14 @@
 """Sync Oura Ring API v2 into PostgreSQL.
 
 Incremental runs re-pull recentDays. Set BACKFILL=1 and START_DATE for history.
+Computes local Symptom Radar proxy after sync (no third-party inference).
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import sys
 import time
 import urllib.error
 import urllib.parse
@@ -17,6 +19,10 @@ from pathlib import Path
 
 import psycopg
 from psycopg.types.json import Jsonb
+
+# Bundled beside this file in the ConfigMap.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from symptom_radar import Night, score_night  # noqa: E402
 
 log = logging.getLogger("oura")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -39,6 +45,9 @@ CREATE TABLE IF NOT EXISTS personal_info (
 CREATE TABLE IF NOT EXISTS daily_activity (
   id text PRIMARY KEY, day date NOT NULL UNIQUE, score double precision,
   steps double precision, active_calories double precision, total_calories double precision,
+  sedentary_time double precision, low_activity_time double precision,
+  medium_activity_time double precision, high_activity_time double precision,
+  target_calories double precision, target_meters double precision, meters_to_target double precision,
   raw jsonb NOT NULL DEFAULT '{}', updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS daily_readiness (
   id text PRIMARY KEY, day date NOT NULL UNIQUE, score double precision,
@@ -57,6 +66,26 @@ CREATE TABLE IF NOT EXISTS daily_stress (
   id text PRIMARY KEY, day date NOT NULL UNIQUE,
   stress_high double precision, recovery_high double precision, day_summary text,
   raw jsonb NOT NULL DEFAULT '{}', updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS daily_resilience (
+  id text PRIMARY KEY, day date NOT NULL UNIQUE, level text,
+  contributors jsonb NOT NULL DEFAULT '{}', raw jsonb NOT NULL DEFAULT '{}',
+  updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS daily_cardiovascular_age (
+  id text PRIMARY KEY, day date NOT NULL UNIQUE, vascular_age double precision,
+  raw jsonb NOT NULL DEFAULT '{}', updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS vo2_max (
+  id text PRIMARY KEY, day date NOT NULL UNIQUE, vo2_max double precision,
+  raw jsonb NOT NULL DEFAULT '{}', updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS sleep_time (
+  id text PRIMARY KEY, day date NOT NULL UNIQUE, recommendation text, status text,
+  optimal_bedtime text, raw jsonb NOT NULL DEFAULT '{}',
+  updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS workout (
+  id text PRIMARY KEY, day date, activity text, calories double precision,
+  distance double precision, intensity text, label text,
+  start_datetime timestamptz, end_datetime timestamptz,
+  raw jsonb NOT NULL DEFAULT '{}', updated_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS workout_day_idx ON workout (day);
 CREATE TABLE IF NOT EXISTS sleep_period (
   id text PRIMARY KEY, day date, bedtime_start timestamptz, bedtime_end timestamptz,
   average_breath double precision, average_heart_rate double precision, average_hrv double precision,
@@ -74,9 +103,26 @@ CREATE TABLE IF NOT EXISTS sleep_stage (
 CREATE INDEX IF NOT EXISTS sleep_stage_range_idx ON sleep_stage (start_ts, end_ts);
 CREATE TABLE IF NOT EXISTS heartrate (
   ts timestamptz PRIMARY KEY, bpm int NOT NULL, source text);
+CREATE TABLE IF NOT EXISTS symptom_radar_daily (
+  day date PRIMARY KEY,
+  level text NOT NULL,
+  score int NOT NULL DEFAULT 0,
+  n_baseline_nights int NOT NULL DEFAULT 0,
+  n_signals int NOT NULL DEFAULT 0,
+  contributors jsonb NOT NULL DEFAULT '[]',
+  summary_text text NOT NULL DEFAULT '',
+  algorithm_version text NOT NULL DEFAULT 'proxy-v1',
+  computed_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS sync_state (
   resource text PRIMARY KEY, high_watermark timestamptz,
   updated_at timestamptz NOT NULL DEFAULT now());
+ALTER TABLE daily_activity ADD COLUMN IF NOT EXISTS sedentary_time double precision;
+ALTER TABLE daily_activity ADD COLUMN IF NOT EXISTS low_activity_time double precision;
+ALTER TABLE daily_activity ADD COLUMN IF NOT EXISTS medium_activity_time double precision;
+ALTER TABLE daily_activity ADD COLUMN IF NOT EXISTS high_activity_time double precision;
+ALTER TABLE daily_activity ADD COLUMN IF NOT EXISTS target_calories double precision;
+ALTER TABLE daily_activity ADD COLUMN IF NOT EXISTS target_meters double precision;
+ALTER TABLE daily_activity ADD COLUMN IF NOT EXISTS meters_to_target double precision;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO oura_ro;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO oura_ro;
 """
@@ -93,7 +139,6 @@ def db():
 
 
 def load_token() -> dict:
-    # Prefer personal access token (Airbyte-style), else OAuth JSON on PVC.
     if pat := os.environ.get("OURA_PAT"):
         return {"access_token": pat, "pat": True}
     return json.loads(TOKEN_PATH.read_text())
@@ -310,24 +355,12 @@ def sync_sleep(conn, tok) -> dict:
                      lowest_heart_rate=EXCLUDED.lowest_heart_rate, restless_periods=EXCLUDED.restless_periods,
                      type=EXCLUDED.type, raw=EXCLUDED.raw, updated_at=now()""",
                 (
-                    sid,
-                    r.get("day"),
-                    bs,
-                    be,
-                    r.get("average_breath"),
-                    r.get("average_heart_rate"),
-                    r.get("average_hrv"),
-                    r.get("awake_time"),
-                    r.get("deep_sleep_duration"),
-                    r.get("light_sleep_duration"),
-                    r.get("rem_sleep_duration"),
-                    r.get("total_sleep_duration"),
-                    r.get("efficiency"),
-                    r.get("latency"),
-                    r.get("lowest_heart_rate"),
-                    r.get("restless_periods"),
-                    r.get("type"),
-                    Jsonb(r),
+                    sid, r.get("day"), bs, be,
+                    r.get("average_breath"), r.get("average_heart_rate"), r.get("average_hrv"),
+                    r.get("awake_time"), r.get("deep_sleep_duration"), r.get("light_sleep_duration"),
+                    r.get("rem_sleep_duration"), r.get("total_sleep_duration"), r.get("efficiency"),
+                    r.get("latency"), r.get("lowest_heart_rate"), r.get("restless_periods"),
+                    r.get("type"), Jsonb(r),
                 ),
             )
             cur.execute("DELETE FROM sleep_stage WHERE sleep_id = %s", (sid,))
@@ -339,6 +372,39 @@ def sync_sleep(conn, tok) -> dict:
     conn.commit()
     set_watermark(conn, "sleep", datetime.now(timezone.utc))
     log.info("sleep upserted=%s range=%s..%s", len(rows), start, today)
+    return tok
+
+
+def sync_workout(conn, tok) -> dict:
+    start, today = range_start(conn, "workout"), date.today()
+    rows, tok, code = fetch_all(tok, "workout", {"start_date": start.isoformat(), "end_date": today.isoformat()})
+    if code in (401, 403):
+        log.warning("workout unavailable code=%s", code)
+        return tok
+    if code >= 400:
+        log.error("workout failed code=%s", code)
+        return tok
+    with conn.cursor() as cur:
+        for r in rows:
+            cur.execute(
+                """INSERT INTO workout (
+                     id, day, activity, calories, distance, intensity, label,
+                     start_datetime, end_datetime, raw, updated_at)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,now())
+                   ON CONFLICT (id) DO UPDATE SET
+                     day=EXCLUDED.day, activity=EXCLUDED.activity, calories=EXCLUDED.calories,
+                     distance=EXCLUDED.distance, intensity=EXCLUDED.intensity, label=EXCLUDED.label,
+                     start_datetime=EXCLUDED.start_datetime, end_datetime=EXCLUDED.end_datetime,
+                     raw=EXCLUDED.raw, updated_at=now()""",
+                (
+                    r["id"], r.get("day"), r.get("activity"), r.get("calories"), r.get("distance"),
+                    r.get("intensity"), r.get("label"),
+                    parse_ts(r.get("start_datetime")), parse_ts(r.get("end_datetime")), Jsonb(r),
+                ),
+            )
+    conn.commit()
+    set_watermark(conn, "workout", datetime.now(timezone.utc))
+    log.info("workout upserted=%s range=%s..%s", len(rows), start, today)
     return tok
 
 
@@ -356,8 +422,7 @@ def sync_heartrate(conn, tok) -> dict:
     while cur < end:
         chunk_end = min(cur + timedelta(days=HR_CHUNK_DAYS), end)
         rows, tok, code = fetch_all(
-            tok,
-            "heartrate",
+            tok, "heartrate",
             {"start_datetime": cur.isoformat(), "end_datetime": chunk_end.isoformat()},
         )
         if code in (401, 403):
@@ -386,6 +451,93 @@ def sync_heartrate(conn, tok) -> dict:
     return tok
 
 
+def _pick_sleep(rows: list) -> dict | None:
+    longs = [r for r in rows if r[1] == "long_sleep"]
+    pool = longs or rows
+    if not pool:
+        return None
+    # (day, type, rhr, hrv, rr, sleep_s, rem_s)
+    return max(pool, key=lambda r: (r[5] or 0))
+
+
+def compute_symptom_radar(conn, from_day: date | None = None) -> int:
+    """Score nights from from_day (default: RECENT_DAYS) using full history for baselines."""
+    start = from_day or (date.today() - timedelta(days=RECENT_DAYS))
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT day, type, lowest_heart_rate, average_hrv, average_breath,
+                      total_sleep_duration, rem_sleep_duration
+               FROM sleep_period WHERE day IS NOT NULL ORDER BY day"""
+        )
+        by_day: dict[date, list] = {}
+        for row in cur.fetchall():
+            by_day.setdefault(row[0], []).append(row)
+
+        cur.execute("SELECT day, temperature_deviation FROM daily_readiness")
+        temp = {d: t for d, t in cur.fetchall()}
+
+        cur.execute("SELECT day, sedentary_time FROM daily_activity")
+        sedentary = {d: s for d, s in cur.fetchall()}
+
+    nights: list[Night] = []
+    for d in sorted(by_day):
+        pick = _pick_sleep(by_day[d])
+        if not pick:
+            continue
+        prev = d - timedelta(days=1)
+        nights.append(
+            Night(
+                day=d,
+                temp=temp.get(d),
+                rhr=pick[2],
+                hrv=pick[3],
+                rr=pick[4],
+                inactive=sedentary.get(prev),
+                sleep_s=pick[5],
+                rem_s=pick[6],
+            )
+        )
+
+    hist = list(nights)
+    n = 0
+    with conn.cursor() as cur:
+        for i, night in enumerate(nights):
+            if night.day < start:
+                continue
+            result = score_night(night, hist[:i])
+            cur.execute(
+                """INSERT INTO symptom_radar_daily (
+                     day, level, score, n_baseline_nights, n_signals, contributors,
+                     summary_text, algorithm_version, computed_at)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,now())
+                   ON CONFLICT (day) DO UPDATE SET
+                     level=EXCLUDED.level, score=EXCLUDED.score,
+                     n_baseline_nights=EXCLUDED.n_baseline_nights, n_signals=EXCLUDED.n_signals,
+                     contributors=EXCLUDED.contributors, summary_text=EXCLUDED.summary_text,
+                     algorithm_version=EXCLUDED.algorithm_version, computed_at=now()""",
+                (
+                    result["day"], result["level"], result["score"], result["n_baseline_nights"],
+                    result["n_signals"], Jsonb(result["contributors"]), result["summary_text"],
+                    result["algorithm_version"],
+                ),
+            )
+            n += 1
+    conn.commit()
+    log.info("symptom_radar upserted=%s from=%s", n, start)
+    return n
+
+
+def activity_row(r: dict) -> tuple:
+    return (
+        r["id"], r.get("day"), r.get("score"), r.get("steps"),
+        r.get("active_calories"), r.get("total_calories"),
+        r.get("sedentary_time"), r.get("low_activity_time"),
+        r.get("medium_activity_time"), r.get("high_activity_time"),
+        r.get("target_calories"), r.get("target_meters"), r.get("meters_to_target"),
+        Jsonb(r),
+    )
+
+
 def main() -> None:
     log.info("start BACKFILL=%s START_DATE=%s", BACKFILL, START_DATE)
     tok = load_token()
@@ -394,72 +546,72 @@ def main() -> None:
             cur.execute(SCHEMA)
         conn.commit()
         tok = upsert_personal(conn, tok)
+        act_cols = [
+            "score", "steps", "active_calories", "total_calories",
+            "sedentary_time", "low_activity_time", "medium_activity_time", "high_activity_time",
+            "target_calories", "target_meters", "meters_to_target",
+        ]
+        tok = sync_daily(conn, tok, "daily_activity", act_cols, activity_row)
         tok = sync_daily(
-            conn,
-            tok,
-            "daily_activity",
-            ["score", "steps", "active_calories", "total_calories"],
-            lambda r: (
-                r["id"],
-                r.get("day"),
-                r.get("score"),
-                r.get("steps"),
-                r.get("active_calories"),
-                r.get("total_calories"),
-                Jsonb(r),
-            ),
-        )
-        tok = sync_daily(
-            conn,
-            tok,
-            "daily_readiness",
+            conn, tok, "daily_readiness",
             ["score", "temperature_deviation", "temperature_trend_deviation", "contributors"],
             lambda r: (
-                r["id"],
-                r.get("day"),
-                r.get("score"),
-                r.get("temperature_deviation"),
-                r.get("temperature_trend_deviation"),
-                Jsonb(r.get("contributors") or {}),
-                Jsonb(r),
+                r["id"], r.get("day"), r.get("score"), r.get("temperature_deviation"),
+                r.get("temperature_trend_deviation"), Jsonb(r.get("contributors") or {}), Jsonb(r),
             ),
         )
         tok = sync_daily(
-            conn,
-            tok,
-            "daily_sleep",
-            ["score", "contributors"],
+            conn, tok, "daily_sleep", ["score", "contributors"],
             lambda r: (r["id"], r.get("day"), r.get("score"), Jsonb(r.get("contributors") or {}), Jsonb(r)),
         )
         tok = sync_daily(
-            conn,
-            tok,
-            "daily_spo2",
+            conn, tok, "daily_spo2",
             ["spo2_percentage_average", "breathing_disturbance_index"],
             lambda r: (
-                r["id"],
-                r.get("day"),
-                (r.get("spo2_percentage") or {}).get("average"),
-                r.get("breathing_disturbance_index"),
-                Jsonb(r),
+                r["id"], r.get("day"), (r.get("spo2_percentage") or {}).get("average"),
+                r.get("breathing_disturbance_index"), Jsonb(r),
             ),
         )
         tok = sync_daily(
-            conn,
-            tok,
-            "daily_stress",
-            ["stress_high", "recovery_high", "day_summary"],
+            conn, tok, "daily_stress", ["stress_high", "recovery_high", "day_summary"],
             lambda r: (
-                r["id"],
-                r.get("day"),
-                r.get("stress_high"),
-                r.get("recovery_high"),
-                r.get("day_summary"),
+                r["id"], r.get("day"), r.get("stress_high"), r.get("recovery_high"),
+                r.get("day_summary"), Jsonb(r),
+            ),
+        )
+        tok = sync_daily(
+            conn, tok, "daily_resilience", ["level", "contributors"],
+            lambda r: (
+                r["id"], r.get("day"), r.get("level"), Jsonb(r.get("contributors") or {}), Jsonb(r),
+            ),
+        )
+        tok = sync_daily(
+            conn, tok, "daily_cardiovascular_age", ["vascular_age"],
+            lambda r: (r.get("id") or r.get("day"), r.get("day"), r.get("vascular_age"), Jsonb(r)),
+        )
+        tok = sync_daily(
+            conn, tok, "vo2_max", ["vo2_max"],
+            lambda r: (r["id"], r.get("day"), r.get("vo2_max"), Jsonb(r)),
+        )
+        tok = sync_daily(
+            conn, tok, "sleep_time", ["recommendation", "status", "optimal_bedtime"],
+            lambda r: (
+                r["id"], r.get("day"),
+                json.dumps(r.get("recommendation")) if not isinstance(r.get("recommendation"), str)
+                else r.get("recommendation"),
+                r.get("status"),
+                json.dumps(r.get("optimal_bedtime")) if r.get("optimal_bedtime") is not None
+                and not isinstance(r.get("optimal_bedtime"), str) else r.get("optimal_bedtime"),
                 Jsonb(r),
             ),
         )
         tok = sync_sleep(conn, tok)
+        tok = sync_workout(conn, tok)
         sync_heartrate(conn, tok)
+        compute_symptom_radar(
+            conn,
+            date.fromisoformat(START_DATE) if BACKFILL else date.today() - timedelta(days=RECENT_DAYS),
+        )
     log.info("done")
 
 

@@ -23,7 +23,9 @@ jobs:
         run: shellcheck scripts/*.sh
 
       - name: Lint chart
-        run: helm lint charts/oura --strict -f ci/values.yaml
+        run: |
+          helm lint charts/oura --strict -f ci/values.yaml
+          helm lint charts/oura --strict -f ci/values.yaml --set dashboard.enabled=true
 
       - name: Render chart
         run: |
@@ -34,6 +36,11 @@ jobs:
           helm template test charts/oura -f ci/values.yaml \
             --set backfill.enabled=true \
             --set backfill.startDate=2020-01-01
+          helm template test charts/oura -f ci/values.yaml \
+            --set dashboard.enabled=true
+
+      - name: Unit tests
+        run: python3 tests/test_symptom_radar.py
 
       - name: Lint manifests
         uses: stackrox/kube-linter-action@v1

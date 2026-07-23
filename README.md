@@ -27,6 +27,20 @@ Published packages are signed. Verify with the [public key](https://kgrubb.githu
    - **Recommended:** personal access token (`auth.mode=pat`) from [Oura Cloud](https://cloud.ouraring.com/personal-access-tokens).
    - **Alternative:** OAuth client id/secret plus token JSON on a PVC (`auth.mode=oauth`).
 
+## Symptom Radar (proxy)
+
+After each sync the collector scores overnight biometrics locally into `symptom_radar_daily` (`none` / `minor` / `major`). This is a TemPredict/Ultrahuman-style baseline composite, **not** Oura Health Radar. No third-party inference.
+
+## Grafana dashboard
+
+Optional ConfigMap for the Grafana dashboard sidecar:
+
+```yaml
+dashboard:
+  enabled: true
+  datasourceUid: oura-postgres   # your Grafana Postgres datasource UID
+```
+
 ## Example
 
 ```yaml
@@ -43,6 +57,10 @@ auth:
 schedule: "0 */6 * * *"
 timeZone: America/New_York
 
+dashboard:
+  enabled: true
+  datasourceUid: oura-postgres
+
 backfill:
   enabled: true
   startDate: "2015-01-01"
@@ -57,4 +75,5 @@ Pushes to `main` that change `charts/` bump the chart version from conventional 
 ```bash
 helm lint charts/oura --strict -f ci/values.yaml
 helm template test charts/oura -f ci/values.yaml
+python3 tests/test_symptom_radar.py
 ```

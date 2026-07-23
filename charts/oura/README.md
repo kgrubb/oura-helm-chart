@@ -16,7 +16,11 @@ CronJob that loads Oura Ring API v2 into PostgreSQL (daily metrics, sleep period
 | `auth.existingSecret` | `""` | **Required.** Oura credentials Secret |
 | `persistence.enabled` | `true` | Token PVC when `auth.mode=oauth` |
 | `backfill.enabled` | `false` | One-shot historical Job |
+| `dashboard.enabled` | `false` | Grafana sidecar dashboard ConfigMap |
+| `dashboard.datasourceUid` | `oura-postgres` | Grafana Postgres datasource UID |
 | `resources` | modest defaults | Override per environment |
+
+The collector also writes a local **Symptom Radar (proxy)** into `symptom_radar_daily` (not Oura Health Radar).
 
 Provision the database and roles outside the chart. Grant Grafana a read-only role separately.
 

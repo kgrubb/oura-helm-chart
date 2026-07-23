@@ -65,6 +65,13 @@ resources:
 
 extraEnv: {}
 
+# Optional Grafana sidecar dashboard (kube-prometheus-stack label grafana_dashboard=1).
+dashboard:
+  enabled: false
+  labels:
+    grafana_dashboard: "1"
+  datasourceUid: oura-postgres
+
 nameOverride: ""
 fullnameOverride: ""
 podAnnotations: {}

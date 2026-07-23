@@ -8,3 +8,5 @@ metadata:
 data:
   collector.py: |
 {{ .Files.Get "files/collector.py" | indent 4 }}
+  symptom_radar.py: |
+{{ .Files.Get "files/symptom_radar.py" | indent 4 }}

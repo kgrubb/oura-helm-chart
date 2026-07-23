@@ -1,0 +1,15 @@
+{{- if .Values.dashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-dashboard" (include "oura.fullname" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "oura.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+    {{- range $k, $v := .Values.dashboard.labels }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+data:
+  oura.json: |
+{{ .Files.Get "files/dashboard-oura.json" | replace "__OURA_DS__" .Values.dashboard.datasourceUid | indent 4 }}
+{{- end }}

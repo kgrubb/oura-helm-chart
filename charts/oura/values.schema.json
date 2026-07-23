@@ -95,6 +95,19 @@
       "type": "object",
       "additionalProperties": { "type": "string" }
     },
+    "dashboard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "datasourceUid": { "type": "string", "minLength": 1 }
+      },
+      "required": ["enabled", "labels", "datasourceUid"]
+    },
     "nameOverride": { "type": "string" },
     "fullnameOverride": { "type": "string" },
     "podAnnotations": {
@@ -136,6 +149,7 @@
     "backfill",
     "resources",
     "extraEnv",
+    "dashboard",
     "nameOverride",
     "fullnameOverride",
     "podAnnotations",
