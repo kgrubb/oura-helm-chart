@@ -1,0 +1,83 @@
+# Runtime image. uv installs psycopg at job start (no custom image required).
+image:
+  repository: ghcr.io/astral-sh/uv
+  tag: python3.12-alpine
+  pullPolicy: IfNotPresent
+
+# CronJob schedule for incremental sync.
+schedule: "0 */6 * * *"
+timeZone: UTC
+concurrencyPolicy: Forbid
+successfulJobsHistoryLimit: 2
+failedJobsHistoryLimit: 3
+activeDeadlineSeconds: 7200
+backoffLimit: 1
+
+# Re-pull this many trailing days every run (Oura mutates after phone sync).
+recentDays: 14
+# Heart-rate API window size.
+hrChunkDays: 7
+pageSleepSeconds: "0.25"
+
+# PostgreSQL target (create DB/role outside the chart).
+postgres:
+  host: postgres-rw.postgres.svc.cluster.local
+  port: 5432
+  database: oura
+  user: oura
+  # Secret must contain the DB password.
+  existingSecret: ""
+  passwordKey: password
+
+# Oura authentication. Prefer a personal access token (simplest).
+# Create at https://cloud.ouraring.com/personal-access-tokens
+auth:
+  # pat | oauth
+  mode: pat
+  existingSecret: ""
+  # PAT mode
+  patKey: OURA_PAT
+  # OAuth mode (client id/secret + token PVC)
+  clientIdKey: OURA_CLIENT_ID
+  clientSecretKey: OURA_CLIENT_SECRET
+
+# OAuth token cache PVC (ignored when auth.mode=pat).
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  storageClass: ""
+  size: 1Gi
+  mountPath: /token
+  tokenFile: oauth_token.json
+
+# One-shot historical Job (delete/recreate to re-run).
+backfill:
+  enabled: false
+  startDate: "2015-01-01"
+  activeDeadlineSeconds: 21600
+  ttlSecondsAfterFinished: 86400
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+# Extra env vars on collector pods.
+extraEnv: {}
+
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

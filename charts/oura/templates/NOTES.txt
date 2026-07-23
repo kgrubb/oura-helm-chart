@@ -1,0 +1,17 @@
+1. Create the Oura database and application role outside this chart.
+2. Create Secret {{ .Values.postgres.existingSecret }} with key {{ .Values.postgres.passwordKey }}.
+3. Create Secret {{ .Values.auth.existingSecret }} with auth credentials
+   (mode={{ .Values.auth.mode }}).
+{{- if eq .Values.auth.mode "pat" }}
+   PAT: https://cloud.ouraring.com/personal-access-tokens
+{{- else }}
+   Place oauth_token.json on the {{ include "oura.tokenPvcName" . }} PVC before the first run.
+{{- end }}
+4. Point Grafana at Postgres as a read-only user (oura_ro recommended).
+
+CronJob: {{ include "oura.fullname" . }}
+Schedule: {{ .Values.schedule }} ({{ .Values.timeZone }})
+{{- if .Values.backfill.enabled }}
+
+Backfill Job enabled — delete it after completion, or set backfill.enabled=false.
+{{- end }}

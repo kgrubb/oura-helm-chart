@@ -1,0 +1,15 @@
+# Chart-releaser artifacts
+.cr-release-packages/
+charts/oura/RELEASE-NOTES.md
+
+# Python
+__pycache__/
+*.py[cod]
+.ruff_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~

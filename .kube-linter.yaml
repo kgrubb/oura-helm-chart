@@ -1,0 +1,7 @@
+checks:
+  exclude:
+    - "unset-cpu-requirements"
+    - "unset-memory-requirements"
+    - "no-read-only-root-fs"
+    # CronJob containers install deps at runtime via uv
+    - "run-as-non-root"

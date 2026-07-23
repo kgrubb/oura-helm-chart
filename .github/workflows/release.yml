@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  pull-requests: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump chart version
+        id: bump
+        run: |
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+          MSG='${{ github.event.head_commit.message }}'
+
+          last_tag=$(git tag -l 'oura-*' --sort=-v:refname | head -1)
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            BEFORE="${last_tag}"
+            MSG=$(git log -1 --format=%s "$AFTER")
+          else
+            [[ "$BEFORE" == "0000000000000000000000000000000000000000" ]] && exit 0
+          fi
+
+          [[ "$MSG" =~ ^chore\(release\): ]] && exit 0
+
+          git diff --name-only "${last_tag:-$BEFORE}" "$AFTER" -- charts/ | grep -q . || exit 0
+          echo "charts_changed=true" >> "$GITHUB_OUTPUT"
+          echo "since_ref=${last_tag:-$BEFORE}" >> "$GITHUB_OUTPUT"
+
+          chmod +x scripts/{bump-chart-version,generate-changelog,sync-gh-pages}.sh
+          ./scripts/bump-chart-version.sh "$BEFORE" "$AFTER"
+          echo "version=$(awk '/^version:/ { print $2 }' charts/oura/Chart.yaml)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        if: steps.bump.outputs.charts_changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./scripts/generate-changelog.sh \
+            "${{ steps.bump.outputs.since_ref }}" \
+            "${{ github.sha }}" \
+            "${{ steps.bump.outputs.version }}"
+
+      - uses: azure/setup-helm@v5
+        if: steps.bump.outputs.charts_changed == 'true'
+
+      - name: Import GPG key
+        if: steps.bump.outputs.charts_changed == 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          gpg_dir="$RUNNER_TEMP/gpg"
+          mkdir -p "$gpg_dir"
+          chmod 700 "$gpg_dir"
+          export GNUPGHOME="$gpg_dir"
+          echo "GNUPGHOME=$gpg_dir" >> "$GITHUB_ENV"
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --list-secret-keys --keyid-format long
+          gpg --list-secret-keys --keyid-format long | grep -q "CA999A73395F45FD"
+          gpg --export-secret-keys AFB495384FDAD4EDC0EBF8FECA999A73395F45FD > "$gpg_dir/secring.gpg"
+          test -s "$gpg_dir/secring.gpg"
+          printf '\n' > "$gpg_dir/passphrase"
+          echo "CR_KEYRING=$gpg_dir/secring.gpg" >> "$GITHUB_ENV"
+          echo "CR_PASSPHRASE_FILE=$gpg_dir/passphrase" >> "$GITHUB_ENV"
+          echo "CR_SIGN=true" >> "$GITHUB_ENV"
+          echo "CR_KEY=8471701+kgrubb@users.noreply.github.com" >> "$GITHUB_ENV"
+
+      - name: Publish charts
+        if: steps.bump.outputs.charts_changed == 'true'
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          charts_dir: charts
+          config: cr.yaml
+          packages_with_index: true
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GNUPGHOME: ${{ env.GNUPGHOME }}
+          CR_SIGN: true
+          CR_KEY: 8471701+kgrubb@users.noreply.github.com
+          CR_KEYRING: ${{ env.CR_KEYRING }}
+          CR_PASSPHRASE_FILE: ${{ env.CR_PASSPHRASE_FILE }}
+
+      - name: Sync gh-pages assets
+        if: steps.bump.outputs.charts_changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/sync-gh-pages.sh static
+
+      - name: Commit release artifacts
+        if: steps.bump.outputs.charts_changed == 'true'
+        run: |
+          git add CHANGELOG.md
+          git diff --quiet charts/oura/Chart.yaml || git add charts/oura/Chart.yaml
+          git diff --staged --quiet && exit 0
+          VERSION=$(awk '/^version:/ { print $2 }' charts/oura/Chart.yaml)
+          git commit -m "chore(release): bump chart to ${VERSION}"
+          git push

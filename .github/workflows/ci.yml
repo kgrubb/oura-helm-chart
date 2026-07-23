@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: azure/setup-helm@v5
+
+      - name: Lint YAML
+        run: |
+          pipx install yamllint
+          yamllint .
+
+      - name: Shellcheck
+        run: shellcheck scripts/*.sh
+
+      - name: Lint chart
+        run: helm lint charts/oura --strict \
+          --set postgres.existingSecret=oura-db \
+          --set auth.existingSecret=oura-api
+
+      - name: Render chart
+        run: |
+          helm template test charts/oura \
+            --set postgres.existingSecret=oura-db \
+            --set auth.existingSecret=oura-api \
+            --set auth.mode=pat
+          helm template test charts/oura \
+            --set postgres.existingSecret=oura-db \
+            --set auth.existingSecret=oura-oauth \
+            --set auth.mode=oauth \
+            --set persistence.storageClass=longhorn
+          helm template test charts/oura \
+            --set postgres.existingSecret=oura-db \
+            --set auth.existingSecret=oura-api \
+            --set backfill.enabled=true \
+            --set backfill.startDate=2020-01-01
+
+      - name: Lint manifests
+        uses: stackrox/kube-linter-action@v1
+        with:
+          directory: charts/oura
+          config: .kube-linter.yaml
