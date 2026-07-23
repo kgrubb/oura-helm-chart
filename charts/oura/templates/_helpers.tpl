@@ -1,4 +1,3 @@
-{{/* Expand the name of the chart. */}}
 {{- define "oura.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
@@ -30,10 +29,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 
 {{- define "oura.tokenPvcName" -}}
 {{- printf "%s-token" (include "oura.fullname" .) | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
-{{- define "oura.useOauth" -}}
-{{- eq .Values.auth.mode "oauth" -}}
 {{- end -}}
 
 {{- define "oura.collectorEnv" -}}
@@ -84,4 +79,56 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: {{ $k }}
   value: {{ $v | quote }}
 {{- end }}
+{{- end -}}
+
+{{- define "oura.volumeMounts" -}}
+- name: config
+  mountPath: /config
+  readOnly: true
+{{- if eq .Values.auth.mode "oauth" }}
+- name: token
+  mountPath: {{ .Values.persistence.mountPath }}
+{{- end }}
+{{- end -}}
+
+{{- define "oura.volumes" -}}
+- name: config
+  configMap:
+    name: {{ include "oura.configMapName" . }}
+    defaultMode: 0444
+{{- if eq .Values.auth.mode "oauth" }}
+- name: token
+  persistentVolumeClaim:
+    claimName: {{ include "oura.tokenPvcName" . }}
+{{- end }}
+{{- end -}}
+
+{{/* Usage: include "oura.container" (dict "root" $ "name" "collector" "backfill" false) */}}
+{{- define "oura.container" -}}
+- name: {{ .name }}
+  image: "{{ .root.Values.image.repository }}:{{ .root.Values.image.tag }}"
+  imagePullPolicy: {{ .root.Values.image.pullPolicy }}
+  command:
+    - uv
+    - run
+    - --with
+    - psycopg[binary]==3.2.9
+    - python
+    - /config/collector.py
+  env:
+    {{- if .backfill }}
+    - name: BACKFILL
+      value: "1"
+    - name: START_DATE
+      value: {{ .root.Values.backfill.startDate | quote }}
+    {{- end }}
+    {{- include "oura.collectorEnv" .root | nindent 4 }}
+  resources:
+    {{- if .backfill }}
+    {{- toYaml .root.Values.backfill.resources | nindent 4 }}
+    {{- else }}
+    {{- toYaml .root.Values.resources | nindent 4 }}
+    {{- end }}
+  volumeMounts:
+    {{- include "oura.volumeMounts" .root | nindent 4 }}
 {{- end -}}

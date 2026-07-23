@@ -1,17 +1,17 @@
-1. Create the Oura database and application role outside this chart.
-2. Create Secret {{ .Values.postgres.existingSecret }} with key {{ .Values.postgres.passwordKey }}.
-3. Create Secret {{ .Values.auth.existingSecret }} with auth credentials
-   (mode={{ .Values.auth.mode }}).
+1. Provision PostgreSQL database/role outside this chart.
+2. Create Secret {{ .Values.postgres.existingSecret | default "<postgres.existingSecret>" }}
+   with key {{ .Values.postgres.passwordKey }}.
+3. Create Secret {{ .Values.auth.existingSecret | default "<auth.existingSecret>" }}
 {{- if eq .Values.auth.mode "pat" }}
-   PAT: https://cloud.ouraring.com/personal-access-tokens
+   with key {{ .Values.auth.patKey }} (https://cloud.ouraring.com/personal-access-tokens).
 {{- else }}
-   Place oauth_token.json on the {{ include "oura.tokenPvcName" . }} PVC before the first run.
+   with OAuth client credentials, and place oauth_token.json on PVC
+   {{ include "oura.tokenPvcName" . }} before the first run.
 {{- end }}
-4. Point Grafana at Postgres as a read-only user (oura_ro recommended).
+4. Point Grafana (or any SQL client) at the database with a read-only role.
 
-CronJob: {{ include "oura.fullname" . }}
-Schedule: {{ .Values.schedule }} ({{ .Values.timeZone }})
+CronJob {{ include "oura.fullname" . }} · {{ .Values.schedule }} ({{ .Values.timeZone }})
 {{- if .Values.backfill.enabled }}
 
-Backfill Job enabled — delete it after completion, or set backfill.enabled=false.
+Backfill Job is enabled — delete it after completion, or set backfill.enabled=false.
 {{- end }}

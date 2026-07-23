@@ -1,6 +1,6 @@
 apiVersion: v2
 name: oura
-description: Helm chart for syncing Oura Ring API data into PostgreSQL
+description: Sync Oura Ring API v2 data into PostgreSQL
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
@@ -21,14 +21,12 @@ keywords:
   - cronjob
 annotations:
   artifacthub.io/category: integration-delivery
-  artifacthub.io/containsSecurityUpdates: "false"
   artifacthub.io/license: Apache-2.0
   artifacthub.io/links: |
     - name: support
       url: https://github.com/kgrubb/oura-helm-chart/issues
     - name: source
       url: https://github.com/kgrubb/oura-helm-chart
-  artifacthub.io/prerelease: "false"
   artifacthub.io/signKey: |
     fingerprint: AFB495384FDAD4EDC0EBF8FECA999A73395F45FD
     url: https://kgrubb.github.io/oura-helm-chart/public.key

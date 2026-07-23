@@ -24,29 +24,42 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump chart version
+      - name: Detect release
         id: bump
         run: |
+          set -euo pipefail
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.sha }}"
-          MSG='${{ github.event.head_commit.message }}'
+          MSG=$(git log -1 --format=%s "$AFTER")
+          last_tag=$(git tag -l 'oura-*' --sort=-v:refname | head -1 || true)
+          first_release=false
 
-          last_tag=$(git tag -l 'oura-*' --sort=-v:refname | head -1)
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            BEFORE="${last_tag}"
-            MSG=$(git log -1 --format=%s "$AFTER")
-          else
-            [[ "$BEFORE" == "0000000000000000000000000000000000000000" ]] && exit 0
+            if [[ -z "$last_tag" ]]; then
+              first_release=true
+            else
+              BEFORE="$last_tag"
+            fi
+          elif [[ "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
+            # Ignore re-push of already-tagged history; allow brand-new repos.
+            [[ -n "$last_tag" ]] && exit 0
+            first_release=true
           fi
 
           [[ "$MSG" =~ ^chore\(release\): ]] && exit 0
 
-          git diff --name-only "${last_tag:-$BEFORE}" "$AFTER" -- charts/ | grep -q . || exit 0
-          echo "charts_changed=true" >> "$GITHUB_OUTPUT"
-          echo "since_ref=${last_tag:-$BEFORE}" >> "$GITHUB_OUTPUT"
-
           chmod +x scripts/{bump-chart-version,generate-changelog,sync-gh-pages}.sh
-          ./scripts/bump-chart-version.sh "$BEFORE" "$AFTER"
+
+          if [[ "$first_release" == "true" ]] || [[ -z "$last_tag" ]]; then
+            # Publish Chart.yaml version as-is for the first packaged release.
+            echo "First chart publish — keeping $(awk '/^version:/ { print $2 }' charts/oura/Chart.yaml)"
+          else
+            git diff --name-only "$last_tag" "$AFTER" -- charts/ | grep -q . || exit 0
+            ./scripts/bump-chart-version.sh "$BEFORE" "$AFTER"
+          fi
+
+          echo "charts_changed=true" >> "$GITHUB_OUTPUT"
+          echo "since_ref=${last_tag:-$AFTER}" >> "$GITHUB_OUTPUT"
           echo "version=$(awk '/^version:/ { print $2 }' charts/oura/Chart.yaml)" >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog
@@ -63,25 +76,50 @@ jobs:
         if: steps.bump.outputs.charts_changed == 'true'
 
       - name: Import GPG key
+        id: gpg
         if: steps.bump.outputs.charts_changed == 'true'
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
+          set -euo pipefail
+          if [[ -z "${GPG_PRIVATE_KEY}" ]]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "GPG_PRIVATE_KEY unset; publishing unsigned packages"
+            exit 0
+          fi
           gpg_dir="$RUNNER_TEMP/gpg"
           mkdir -p "$gpg_dir"
           chmod 700 "$gpg_dir"
           export GNUPGHOME="$gpg_dir"
           echo "GNUPGHOME=$gpg_dir" >> "$GITHUB_ENV"
           printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
-          gpg --list-secret-keys --keyid-format long
           gpg --list-secret-keys --keyid-format long | grep -q "CA999A73395F45FD"
           gpg --export-secret-keys AFB495384FDAD4EDC0EBF8FECA999A73395F45FD > "$gpg_dir/secring.gpg"
           test -s "$gpg_dir/secring.gpg"
           printf '\n' > "$gpg_dir/passphrase"
           echo "CR_KEYRING=$gpg_dir/secring.gpg" >> "$GITHUB_ENV"
           echo "CR_PASSPHRASE_FILE=$gpg_dir/passphrase" >> "$GITHUB_ENV"
-          echo "CR_SIGN=true" >> "$GITHUB_ENV"
-          echo "CR_KEY=8471701+kgrubb@users.noreply.github.com" >> "$GITHUB_ENV"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure gh-pages branch
+        if: steps.bump.outputs.charts_changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            exit 0
+          fi
+          work=$(mktemp -d)
+          cp -a pages/. "$work/"
+          printf 'apiVersion: v1\nentries: {}\ngenerated: "%s"\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$work/index.yaml"
+          git -C "$work" init -b gh-pages
+          git -C "$work" config user.name "github-actions[bot]"
+          git -C "$work" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$work" add -A
+          git -C "$work" commit -m "chore: initialize gh-pages"
+          git -C "$work" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$work" push -u origin gh-pages
 
       - name: Publish charts
         if: steps.bump.outputs.charts_changed == 'true'
@@ -93,7 +131,7 @@ jobs:
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GNUPGHOME: ${{ env.GNUPGHOME }}
-          CR_SIGN: true
+          CR_SIGN: ${{ steps.gpg.outputs.signed }}
           CR_KEY: 8471701+kgrubb@users.noreply.github.com
           CR_KEYRING: ${{ env.CR_KEYRING }}
           CR_PASSPHRASE_FILE: ${{ env.CR_PASSPHRASE_FILE }}
@@ -102,6 +140,7 @@ jobs:
         if: steps.bump.outputs.charts_changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: ./scripts/sync-gh-pages.sh static
 
       - name: Commit release artifacts

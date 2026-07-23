@@ -13,6 +13,6 @@ ignore: |
 rules:
   document-start: disable
   truthy:
-    check-keys: false  # allow GitHub Actions "on:"
+    check-keys: false
   line-length:
     max: 120

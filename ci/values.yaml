@@ -1,0 +1,6 @@
+# Values used by CI (helm lint / template). Not for production.
+postgres:
+  existingSecret: ci-oura-db
+auth:
+  mode: pat
+  existingSecret: ci-oura-api

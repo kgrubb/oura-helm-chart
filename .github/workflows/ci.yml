@@ -23,24 +23,15 @@ jobs:
         run: shellcheck scripts/*.sh
 
       - name: Lint chart
-        run: helm lint charts/oura --strict \
-          --set postgres.existingSecret=oura-db \
-          --set auth.existingSecret=oura-api
+        run: helm lint charts/oura --strict -f ci/values.yaml
 
       - name: Render chart
         run: |
-          helm template test charts/oura \
-            --set postgres.existingSecret=oura-db \
-            --set auth.existingSecret=oura-api \
-            --set auth.mode=pat
-          helm template test charts/oura \
-            --set postgres.existingSecret=oura-db \
-            --set auth.existingSecret=oura-oauth \
+          helm template test charts/oura -f ci/values.yaml
+          helm template test charts/oura -f ci/values.yaml \
             --set auth.mode=oauth \
-            --set persistence.storageClass=longhorn
-          helm template test charts/oura \
-            --set postgres.existingSecret=oura-db \
-            --set auth.existingSecret=oura-api \
+            --set persistence.storageClass=standard
+          helm template test charts/oura -f ci/values.yaml \
             --set backfill.enabled=true \
             --set backfill.startDate=2020-01-01
 

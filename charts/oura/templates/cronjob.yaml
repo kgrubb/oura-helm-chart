@@ -42,35 +42,6 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           containers:
-            - name: collector
-              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              imagePullPolicy: {{ .Values.image.pullPolicy }}
-              command:
-                - uv
-                - run
-                - --with
-                - psycopg[binary]==3.2.9
-                - python
-                - /config/collector.py
-              env:
-                {{- include "oura.collectorEnv" . | nindent 16 }}
-              resources:
-                {{- toYaml .Values.resources | nindent 16 }}
-              volumeMounts:
-                - name: config
-                  mountPath: /config
-                  readOnly: true
-                {{- if eq .Values.auth.mode "oauth" }}
-                - name: token
-                  mountPath: {{ .Values.persistence.mountPath }}
-                {{- end }}
+            {{- include "oura.container" (dict "root" . "name" "collector" "backfill" false) | nindent 12 }}
           volumes:
-            - name: config
-              configMap:
-                name: {{ include "oura.configMapName" . }}
-                defaultMode: 0444
-            {{- if eq .Values.auth.mode "oauth" }}
-            - name: token
-              persistentVolumeClaim:
-                claimName: {{ include "oura.tokenPvcName" . }}
-            {{- end }}
+            {{- include "oura.volumes" . | nindent 12 }}

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Oura API → Postgres. Re-pull recent days; backfill via START_DATE + BACKFILL=1."""
+"""Sync Oura Ring API v2 into PostgreSQL.
+
+Incremental runs re-pull recentDays. Set BACKFILL=1 and START_DATE for history.
+"""
 from __future__ import annotations
 
 import json

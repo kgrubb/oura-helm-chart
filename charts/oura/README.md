@@ -1,6 +1,6 @@
 # oura
 
-CronJob that pulls Oura Ring API v2 into PostgreSQL (daily metrics, sleep periods/stages, heart rate).
+CronJob that loads Oura Ring API v2 into PostgreSQL (daily metrics, sleep periods/stages, heart rate).
 
 ## Values
 
@@ -10,6 +10,7 @@ CronJob that pulls Oura Ring API v2 into PostgreSQL (daily metrics, sleep period
 | `schedule` | `0 */6 * * *` | Cron expression |
 | `timeZone` | `UTC` | CronJob `timeZone` |
 | `recentDays` | `14` | Trailing days re-fetched every run |
+| `postgres.host` | `postgres` | PostgreSQL hostname |
 | `postgres.existingSecret` | `""` | **Required.** DB password Secret |
 | `auth.mode` | `pat` | `pat` or `oauth` |
 | `auth.existingSecret` | `""` | **Required.** Oura credentials Secret |
@@ -17,6 +18,6 @@ CronJob that pulls Oura Ring API v2 into PostgreSQL (daily metrics, sleep period
 | `backfill.enabled` | `false` | One-shot historical Job |
 | `resources` | modest defaults | Override per environment |
 
-Create the database and roles outside the chart. Grant Grafana a read-only role (`oura_ro`) separately.
+Provision the database and roles outside the chart. Grant Grafana a read-only role separately.
 
 See [values.yaml](values.yaml) and the [Oura API v2 docs](https://cloud.ouraring.com/v2/docs).
