@@ -4,6 +4,13 @@ All notable changes to this chart are documented here.
 
 ## [Unreleased]
 
+## [0.2.9] - 2026-07-23
+
+### Fixed
+- polish Oura dashboard UX and score radar on readiness day
+
+
+
 ## [0.2.8] - 2026-07-23
 
 ### Fixed
