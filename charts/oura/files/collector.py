@@ -408,6 +408,12 @@ def _pick_sleep(rows: list) -> tuple | None:
 
 
 def compute_symptom_radar(conn, from_day: date | None = None) -> int:
+    """Score one row per readiness day (Oura's day), joining sleep vitals when present.
+
+    Readiness often lands before sleep for the same calendar day; keying only on
+    sleep left Grafana stuck on yesterday's radar while the Oura app already
+    showed today's status.
+    """
     start = from_day or (date.today() - timedelta(days=RECENT_DAYS))
     with conn.cursor() as cur:
         cur.execute(
@@ -428,14 +434,19 @@ def compute_symptom_radar(conn, from_day: date | None = None) -> int:
         )
         sedentary = {d: s for d, s in cur.fetchall()}
 
+    # Prefer readiness days (matches Oura app day); include sleep-only days as fallback.
+    days = sorted(set(readiness) | set(by_day))
     nights = []
-    for d in sorted(by_day):
-        pick = _pick_sleep(by_day[d])
-        if not pick:
-            continue
+    for d in days:
+        pick = _pick_sleep(by_day.get(d, []))
         temp, trend = readiness.get(d, (None, None))
+        if temp is None and trend is None and pick is None:
+            continue
         nights.append(Night(
-            day=d, temp=temp, trend=trend, rhr=pick[2], hrv=pick[3], rr=pick[4],
+            day=d, temp=temp, trend=trend,
+            rhr=pick[2] if pick else None,
+            hrv=pick[3] if pick else None,
+            rr=pick[4] if pick else None,
             inactive=sedentary.get(d - timedelta(days=1)),
         ))
 

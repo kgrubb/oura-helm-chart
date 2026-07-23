@@ -1,9 +1,10 @@
 {
-  "title": "Oura Ring",
+  "title": "Oura",
   "uid": "oura-ring",
   "tags": [
     "oura",
-    "health"
+    "health",
+    "wellness"
   ],
   "schemaVersion": 39,
   "version": 4,
@@ -22,6 +23,19 @@
   },
   "panels": [
     {
+      "type": "row",
+      "title": "Today",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false,
+      "panels": [],
+      "id": 30
+    },
+    {
       "type": "stat",
       "title": "Sleep",
       "id": 1,
@@ -29,7 +43,7 @@
         "h": 4,
         "w": 3,
         "x": 0,
-        "y": 0
+        "y": 1
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -66,6 +80,10 @@
               },
               {
                 "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "yellow",
                 "value": 70
               },
               {
@@ -75,7 +93,8 @@
             ]
           }
         }
-      }
+      },
+      "description": "How well you slept last night (0-100). 85+ is optimal."
     },
     {
       "type": "stat",
@@ -85,7 +104,7 @@
         "h": 4,
         "w": 3,
         "x": 3,
-        "y": 0
+        "y": 1
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -122,6 +141,10 @@
               },
               {
                 "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "yellow",
                 "value": 70
               },
               {
@@ -131,7 +154,8 @@
             ]
           }
         }
-      }
+      },
+      "description": "How ready you are for the day (0-100). 85+ is optimal."
     },
     {
       "type": "stat",
@@ -141,7 +165,7 @@
         "h": 4,
         "w": 3,
         "x": 6,
-        "y": 0
+        "y": 1
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -178,6 +202,10 @@
               },
               {
                 "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "yellow",
                 "value": 70
               },
               {
@@ -187,7 +215,8 @@
             ]
           }
         }
-      }
+      },
+      "description": "How balanced your movement and rest have been (0-100). 85+ is optimal."
     },
     {
       "type": "stat",
@@ -197,7 +226,7 @@
         "h": 4,
         "w": 3,
         "x": 9,
-        "y": 0
+        "y": 1
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -227,13 +256,26 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "blue",
+                "color": "red",
                 "value": null
+              },
+              {
+                "color": "orange",
+                "value": 4000
+              },
+              {
+                "color": "yellow",
+                "value": 7000
+              },
+              {
+                "color": "green",
+                "value": 10000
               }
             ]
           }
         }
-      }
+      },
+      "description": "Steps taken today."
     },
     {
       "type": "stat",
@@ -243,7 +285,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 0
+        "y": 1
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -263,39 +305,66 @@
             {
               "type": "value",
               "options": {
-                "0": { "text": "no signs", "color": "green" },
-                "1": { "text": "Minor Signs", "color": "orange" },
-                "2": { "text": "Major signs", "color": "red" },
-                "-1": { "text": "—", "color": "text" }
+                "0": {
+                  "text": "no signs",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "Minor Signs",
+                  "color": "yellow"
+                },
+                "2": {
+                  "text": "Major signs",
+                  "color": "red"
+                },
+                "-1": {
+                  "text": "n/a",
+                  "color": "text"
+                }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 1 },
-              { "color": "red", "value": 2 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
             ]
           }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "value"
-      }
+      },
+      "description": "Signs your body may be under extra strain, based on last night's data."
     },
     {
       "type": "stat",
-      "title": "SpO2",
+      "title": "Blood oxygen",
+      "description": "Overnight blood oxygen (SpO2). About 95% or higher is typical.",
       "id": 5,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 18,
-        "y": 0
+        "y": 1
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -306,7 +375,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT spo2_percentage_average AS \"SpO2\" FROM daily_spo2 ORDER BY day DESC LIMIT 1"
+          "rawSql": "SELECT spo2_percentage_average AS \"Oxygen\" FROM daily_spo2 ORDER BY day DESC LIMIT 1"
         }
       ],
       "options": {
@@ -321,7 +390,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
-          "min": 90,
+          "min": 85,
           "max": 100,
           "thresholds": {
             "mode": "absolute",
@@ -331,12 +400,12 @@
                 "value": null
               },
               {
-                "color": "orange",
-                "value": 94
+                "color": "yellow",
+                "value": 90
               },
               {
                 "color": "green",
-                "value": 96
+                "value": 95
               }
             ]
           }
@@ -351,7 +420,7 @@
         "h": 4,
         "w": 3,
         "x": 21,
-        "y": 0
+        "y": 1
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -381,23 +450,37 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "purple",
+                "color": "blue",
                 "value": null
               }
             ]
           }
         }
-      }
+      },
+      "description": "Heart rate variability during sleep. Higher often means more recovered."
+    },
+    {
+      "type": "row",
+      "title": "Details",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "collapsed": false,
+      "panels": [],
+      "id": 31
     },
     {
       "type": "table",
-      "title": "Radar Details",
+      "title": "Symptom history",
       "id": 21,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 4
+        "y": 6
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -408,7 +491,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT to_char(day, 'Mon FMDD') AS \"Day\",\n  CASE level\n    WHEN 'none' THEN 'no signs'\n    WHEN 'minor' THEN 'Minor Signs'\n    WHEN 'major' THEN 'Major signs'\n    ELSE '—'\n  END AS \"Status\"\nFROM symptom_radar_daily\nORDER BY day DESC\nLIMIT 14"
+          "rawSql": "SELECT to_char(day, 'Mon FMDD') AS \"Day\",\n  CASE level\n    WHEN 'none' THEN 'no signs'\n    WHEN 'minor' THEN 'Minor Signs'\n    WHEN 'major' THEN 'Major signs'\n    ELSE 'n/a'\n  END AS \"Status\"\nFROM symptom_radar_daily\nORDER BY day DESC\nLIMIT 14"
         }
       ],
       "options": {
@@ -443,7 +526,7 @@
                         "index": 0
                       },
                       "Minor Signs": {
-                        "color": "orange",
+                        "color": "yellow",
                         "index": 1
                       },
                       "Major signs": {
@@ -463,18 +546,19 @@
             ]
           }
         ]
-      }
+      },
+      "description": "Recent Symptom Radar results by day."
     },
     {
       "type": "bargauge",
-      "title": "Readiness breakdown",
+      "title": "Readiness factors",
       "id": 22,
-      "description": "How Oura built today's Readiness score. Each bar is one piece of that score (0–100). This is not Symptom Radar.",
+      "description": "The pieces that make up today's Readiness score (each 0-100).",
       "gridPos": {
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 4
+        "y": 6
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -485,7 +569,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT CASE key\n  WHEN 'hrv_balance' THEN 'HRV'\n  WHEN 'sleep_balance' THEN 'Sleep'\n  WHEN 'previous_night' THEN 'Last night'\n  WHEN 'recovery_index' THEN 'Recovery'\n  WHEN 'activity_balance' THEN 'Activity'\n  WHEN 'body_temperature' THEN 'Temperature'\n  WHEN 'sleep_regularity' THEN 'Regularity'\n  WHEN 'resting_heart_rate' THEN 'Resting HR'\n  WHEN 'previous_day_activity' THEN 'Yesterday'\n  ELSE initcap(replace(key, '_', ' '))\nEND AS \"Factor\",\nvalue::float AS \"Score\"\nFROM daily_readiness, jsonb_each_text(contributors)\nWHERE day = (SELECT max(day) FROM daily_readiness)\nORDER BY 2 DESC"
+          "rawSql": "SELECT\n  (contributors->>'body_temperature')::float AS \"Temperature\",\n  (contributors->>'resting_heart_rate')::float AS \"Resting HR\",\n  (contributors->>'hrv_balance')::float AS \"HRV\",\n  (contributors->>'sleep_balance')::float AS \"Sleep\",\n  (contributors->>'sleep_regularity')::float AS \"Regularity\",\n  (contributors->>'previous_night')::float AS \"Last night\",\n  (contributors->>'previous_day_activity')::float AS \"Yesterday\",\n  (contributors->>'activity_balance')::float AS \"Activity\",\n  (contributors->>'recovery_index')::float AS \"Recovery\"\nFROM daily_readiness\nWHERE day = (SELECT max(day) FROM daily_readiness)"
         }
       ],
       "fieldConfig": {
@@ -501,6 +585,10 @@
               },
               {
                 "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "yellow",
                 "value": 70
               },
               {
@@ -515,21 +603,26 @@
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
-          ]
+          ],
+          "fields": "/.*/"
         },
         "displayMode": "gradient",
-        "orientation": "horizontal"
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "colorMode": "background"
       }
     },
     {
       "type": "stat",
-      "title": "Active kcal",
+      "title": "Active calories",
       "id": 23,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 18,
-        "y": 4
+        "y": 6
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -540,7 +633,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT active_calories AS \"kcal\" FROM daily_activity ORDER BY day DESC LIMIT 1"
+          "rawSql": "SELECT active_calories AS \"Calories\" FROM daily_activity ORDER BY day DESC LIMIT 1"
         }
       ],
       "options": {
@@ -554,19 +647,29 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "none"
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
         }
-      }
+      },
+      "description": "Calories burned through movement today."
     },
     {
       "type": "stat",
-      "title": "Stress summary",
+      "title": "Stress",
       "id": 24,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 21,
-        "y": 4
+        "y": 6
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -586,31 +689,69 @@
             {
               "type": "value",
               "options": {
-                "0": { "text": "Restored", "color": "green" },
-                "1": { "text": "Normal", "color": "blue" },
-                "2": { "text": "Stressful", "color": "orange" },
-                "-1": { "text": "—", "color": "text" }
+                "0": {
+                  "text": "Restored",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "Normal",
+                  "color": "yellow"
+                },
+                "2": {
+                  "text": "Stressful",
+                  "color": "red"
+                },
+                "-1": {
+                  "text": "n/a",
+                  "color": "text"
+                }
               }
             }
-          ]
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "value"
-      }
+      },
+      "description": "Today's stress summary from Oura: Restored, Normal, or Stressful."
     },
     {
       "type": "timeseries",
-      "title": "Activity zone time (hours)",
+      "title": "Time by activity level",
       "id": 25,
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 8
+        "y": 10
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -634,7 +775,21 @@
             }
           }
         }
-      }
+      },
+      "description": "Hours spent sedentary or in low, medium, and high activity."
+    },
+    {
+      "type": "row",
+      "title": "Recovery and fitness",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "collapsed": false,
+      "panels": [],
+      "id": 32
     },
     {
       "type": "table",
@@ -644,7 +799,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 12
+        "y": 15
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -660,17 +815,19 @@
       ],
       "options": {
         "showHeader": true
-      }
+      },
+      "description": "Latest workouts recorded by your ring."
     },
     {
       "type": "stat",
       "title": "Resilience",
+      "description": "How well you're bouncing back from stress over time.\n\nLimited \u00b7 Adequate \u00b7 Solid \u00b7 Strong",
       "id": 27,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 12
+        "y": 15
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -690,18 +847,62 @@
             {
               "type": "value",
               "options": {
-                "0": { "text": "Limited", "color": "red" },
-                "1": { "text": "Adequate", "color": "orange" },
-                "2": { "text": "Solid", "color": "green" },
-                "3": { "text": "Strong", "color": "blue" },
-                "-1": { "text": "—", "color": "text" }
+                "0": {
+                  "text": "Limited",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Adequate",
+                  "color": "orange"
+                },
+                "2": {
+                  "text": "Solid",
+                  "color": "yellow"
+                },
+                "3": {
+                  "text": "Strong",
+                  "color": "green"
+                },
+                "-1": {
+                  "text": "n/a",
+                  "color": "text"
+                }
               }
             }
-          ]
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "yellow",
+                "value": 2
+              },
+              {
+                "color": "green",
+                "value": 3
+              }
+            ]
+          }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "value"
@@ -711,12 +912,12 @@
       "type": "stat",
       "title": "VO2 max",
       "id": 28,
-      "description": "Shown when Oura has published a VO2 estimate for your account. Many accounts have none yet.",
+      "description": "How efficiently your body uses oxygen during exercise. Unavailable until Oura has a reading for you.",
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 12
+        "y": 15
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -736,21 +937,46 @@
             {
               "type": "value",
               "options": {
-                "-1": { "text": "Unavailable", "color": "text" }
+                "-1": {
+                  "text": "Unavailable",
+                  "color": "text"
+                }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "text", "value": null },
-              { "color": "blue", "value": 0 }
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 30
+              },
+              {
+                "color": "yellow",
+                "value": 35
+              },
+              {
+                "color": "green",
+                "value": 40
+              }
             ]
           }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "value"
@@ -764,7 +990,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 12
+        "y": 15
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -775,7 +1001,13 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT vascular_age AS \"Age\" FROM daily_cardiovascular_age ORDER BY day DESC LIMIT 1"
+          "rawSql": "SELECT v.vascular_age AS \"Age\"\nFROM daily_cardiovascular_age v\nORDER BY v.day DESC\nLIMIT 1"
+        },
+        {
+          "refId": "B",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT age AS \"blue_at\", age + 1 AS \"red_at\"\nFROM personal_info\nWHERE id = 1 AND age IS NOT NULL"
         }
       ],
       "options": {
@@ -785,18 +1017,82 @@
           ]
         },
         "colorMode": "background",
-        "graphMode": "area"
-      }
+        "graphMode": "area",
+        "textMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 900001
+              },
+              {
+                "color": "red",
+                "value": 900002
+              }
+            ]
+          }
+        }
+      },
+      "description": "Estimated age of your arteries. Green if younger than you, blue if the same, red if older.",
+      "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "blue_at",
+                "handlerKey": "threshold1",
+                "reducerId": "lastNotNull"
+              },
+              {
+                "fieldName": "red_at",
+                "handlerKey": "threshold2",
+                "reducerId": "lastNotNull"
+              }
+            ]
+          }
+        },
+        {
+          "id": "filterByRefId",
+          "options": {
+            "include": "A"
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Trends",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "collapsed": false,
+      "panels": [],
+      "id": 33
     },
     {
       "type": "timeseries",
-      "title": "Daily scores",
+      "title": "Score trends",
       "id": 10,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 20
+        "y": 24
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -843,17 +1139,18 @@
         "tooltip": {
           "mode": "multi"
         }
-      }
+      },
+      "description": "Sleep, Readiness, and Activity scores over time."
     },
     {
       "type": "timeseries",
-      "title": "Steps",
+      "title": "Step trends",
       "id": 11,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 20
+        "y": 24
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -874,6 +1171,27 @@
             "drawStyle": "bars",
             "fillOpacity": 60,
             "spanNulls": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 4000
+              },
+              {
+                "color": "yellow",
+                "value": 7000
+              },
+              {
+                "color": "green",
+                "value": 10000
+              }
+            ]
           }
         }
       },
@@ -884,18 +1202,20 @@
         },
         "tooltip": {
           "mode": "single"
-        }
-      }
+        },
+        "colorMode": "background"
+      },
+      "description": "Daily step count over time."
     },
     {
       "type": "timeseries",
-      "title": "Sleep stage durations (hours)",
+      "title": "Sleep stages",
       "id": 12,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 29
+        "y": 33
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -930,17 +1250,18 @@
         "tooltip": {
           "mode": "multi"
         }
-      }
+      },
+      "description": "Time in deep, REM, light sleep, and awake."
     },
     {
       "type": "timeseries",
-      "title": "Sleep efficiency & latency",
+      "title": "Sleep timing",
       "id": 13,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 29
+        "y": 33
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -972,17 +1293,18 @@
         "tooltip": {
           "mode": "multi"
         }
-      }
+      },
+      "description": "Efficiency is the percent of time in bed spent asleep. Latency is how long it took to fall asleep."
     },
     {
       "type": "timeseries",
-      "title": "Overnight HRV & HR (sleep periods)",
+      "title": "Overnight heart metrics",
       "id": 14,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 37
+        "y": 41
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1014,7 +1336,8 @@
         "tooltip": {
           "mode": "multi"
         }
-      }
+      },
+      "description": "Heart rate variability and resting heart rate during your main sleep."
     },
     {
       "type": "timeseries",
@@ -1024,7 +1347,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 37
+        "y": 41
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1057,17 +1380,18 @@
         "tooltip": {
           "mode": "single"
         }
-      }
+      },
+      "description": "Your heart rate over the selected time range."
     },
     {
       "type": "timeseries",
-      "title": "Temperature deviation (\u00b0C)",
+      "title": "Skin temperature",
       "id": 16,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 45
+        "y": 49
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1100,17 +1424,18 @@
         "tooltip": {
           "mode": "multi"
         }
-      }
+      },
+      "description": "How much your overnight skin temperature differs from your baseline, and the recent trend."
     },
     {
       "type": "timeseries",
-      "title": "Stress / recovery (hours)",
+      "title": "Stress and recovery",
       "id": 17,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 45
+        "y": 49
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1145,17 +1470,18 @@
         "tooltip": {
           "mode": "multi"
         }
-      }
+      },
+      "description": "Hours spent in high stress versus recovery during the day."
     },
     {
       "type": "timeseries",
-      "title": "SpO2 average",
+      "title": "Blood oxygen trend",
       "id": 18,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 53
+        "y": 57
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1187,17 +1513,18 @@
         "tooltip": {
           "mode": "multi"
         }
-      }
+      },
+      "description": "Average overnight blood oxygen over time."
     },
     {
       "type": "table",
-      "title": "Recent sleep periods",
+      "title": "Recent nights",
       "id": 19,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 53
+        "y": 57
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1213,8 +1540,9 @@
       ],
       "options": {
         "showHeader": true
-      }
+      },
+      "description": "Details from your latest sleep sessions."
     }
   ],
-  "description": "Oura Ring metrics from PostgreSQL."
+  "description": "Your Oura Ring at a glance. Green is in a healthy range, yellow means pay attention, and red means take it easy. Blue tiles are informational (not good/bad)."
 }
