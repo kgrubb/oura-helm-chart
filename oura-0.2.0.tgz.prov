@@ -1,0 +1,54 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+annotations:
+  artifacthub.io/category: integration-delivery
+  artifacthub.io/containsSecurityUpdates: "false"
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/links: |
+    - name: support
+      url: https://github.com/kgrubb/oura-helm-chart/issues
+    - name: source
+      url: https://github.com/kgrubb/oura-helm-chart
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/signKey: |
+    fingerprint: 9D14AFA7672D09B60F1116886551521D24B1ECB3
+    url: https://kgrubb.github.io/oura-helm-chart/public.key
+apiVersion: v2
+appVersion: 0.1.0
+description: Sync Oura Ring API v2 data into PostgreSQL
+home: https://cloud.ouraring.com/v2/docs
+icon: https://kgrubb.github.io/oura-helm-chart/logo.svg
+keywords:
+- - oura
+- - health
+- - postgres
+- - grafana
+- - cronjob
+maintainers:
+- - email: 8471701+kgrubb@users.noreply.github.com
+  name: kgrubb
+  url: https://github.com/kgrubb
+name: oura
+sources:
+- - https://cloud.ouraring.com/v2/docs
+- - https://github.com/kgrubb/oura-helm-chart
+type: application
+version: 0.2.0
+
+...
+files:
+  oura-0.2.0.tgz: sha256:97761d4f66bace2f153d7a365a0de6b384606c15333c2b54ae9c49b948e676fc
+-----BEGIN PGP SIGNATURE-----
+
+wsDcBAEBCgAQBQJqYoMMCRBlUVIdJLHsswAAFwEMAAURl72WDe2yblgrT1Mw/EHR
+++g1OYfEq4W8rzZPSzMTLztBZPv8dtodu6dtiQSBnKuOD57OTkUpuLJGXIm/Sth6
+P3v6ut3uoJxI08HcHyW8drCdnW9AsgiyJA1qf6tACRRAf1oqiHtjca4/5QbBH0U1
+VfmHyjJ6oshSQPb/zw7EcGjXn2GTv3+GuXERyuk/m2nHYygEVWITHfnl5B1ENbb+
+U2anhUf+5dXXgUAEkkuCVK5hYIVRLLOQVpTqbHm6kt3XXdxdER5+hN5oN6pzmNWG
+flKnsxDOxzQKuyT6YZyL5gMMObSYWqi1ZXMFnZmy+k76/JaQXQ8KdqTI+uFvyGb+
+Q38OlID5cpDFdqD41ZMFsZRrsVFxZ9E8iI+ffgRB0VjX3XsLbqbe6sUCM+hpdDFP
+3m+UJKOUa77sgUye3gColeoq3qEp56SJPJu9ampvIJb/wuOB9ah1cqDaocWr9Rk0
+ZKpPyJjV1tL71pbcWksyBEtR1fD+TR/Y8iTcOMIKDA==
+=ya4u
+-----END PGP SIGNATURE-----
