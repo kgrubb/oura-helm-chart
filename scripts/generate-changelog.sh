@@ -13,6 +13,8 @@ CHANGELOG="CHANGELOG.md"
 NOTES="charts/oura/RELEASE-NOTES.md"
 DATE=$(date -u +%Y-%m-%d)
 
+grep -q "^## \\[${VERSION}\\]" "$CHANGELOG" && exit 0
+
 added=()
 fixed=()
 changed=()
@@ -20,10 +22,14 @@ changed=()
 section_for() {
   case "$1" in
     feat!*|*!:*|*BREAKING*) echo changed ;;
-    feat:*) echo added ;;
-    fix:*) echo fixed ;;
-    perf:*|refactor:*|chore:*|docs:*|ci:*) echo changed ;;
+    feat:*|feat\(*\):*) echo added ;;
+    fix:*|fix\(*\):*) echo fixed ;;
+    perf:*|refactor:*|chore:*|docs:*|ci:*|perf\(*\):*|refactor\(*\):*|chore\(*\):*|docs\(*\):*|ci\(*\):*) echo changed ;;
   esac
+}
+
+strip_prefix() {
+  sed -E 's/^[a-z]+(\([^)]+\))?(!)?:[[:space:]]*//' <<<"$1"
 }
 
 pr_numbers_since() {
@@ -71,6 +77,19 @@ while read -r num; do
   fi
 done < <(pr_numbers_since)
 
+# Direct-to-main: use conventional commit subjects when no PRs contributed entries.
+if [[ ${#added[@]} -eq 0 && ${#fixed[@]} -eq 0 && ${#changed[@]} -eq 0 ]]; then
+  while IFS= read -r subject; do
+    [[ -z "$subject" || "$subject" =~ ^chore\(release\): ]] && continue
+    section=$(section_for "$subject")
+    if [[ -z "$section" ]]; then
+      # Non-conventional subjects still belong in the release notes.
+      section=changed
+    fi
+    append "$section" "- $(strip_prefix "$subject")"
+  done < <(git log "${SINCE}..${UNTIL}" --pretty=format:'%s')
+fi
+
 if [[ ${#added[@]} -eq 0 && ${#fixed[@]} -eq 0 && ${#changed[@]} -eq 0 ]]; then
   changed=("- Chart update")
 fi
@@ -81,8 +100,6 @@ fi
   [[ ${#changed[@]} -gt 0 ]] && { printf '### Changed\n'; printf '%s\n' "${changed[@]}"; echo; }
   [[ ${#fixed[@]} -gt 0 ]] && { printf '### Fixed\n'; printf '%s\n' "${fixed[@]}"; echo; }
 } > "$NOTES"
-
-grep -q "^## \\[${VERSION}\\]" "$CHANGELOG" && exit 0
 
 line=$(grep -n '^## \[Unreleased\]' "$CHANGELOG" | cut -d: -f1)
 {
