@@ -31,6 +31,16 @@ Published packages are signed. Verify with the [public key](https://kgrubb.githu
 
 After each sync the collector scores overnight biometrics into `symptom_radar_daily` (`none` / `minor` / `major`).
 
+## OAuth scopes
+
+For workouts, resilience, and cardiovascular age, authorize with:
+
+```text
+email personal daily heartrate spo2 workout stress heart_health
+```
+
+Enable the same scopes on the Oura API application.
+
 ## Grafana dashboard
 
 Optional ConfigMap for the Grafana dashboard sidecar:

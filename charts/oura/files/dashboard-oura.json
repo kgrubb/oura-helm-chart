@@ -254,7 +254,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT level AS \"Radar\" FROM symptom_radar_daily ORDER BY day DESC LIMIT 1"
+          "rawSql": "SELECT CASE level WHEN 'none' THEN 0 WHEN 'minor' THEN 1 WHEN 'major' THEN 2 ELSE -1 END AS \"Radar\"\nFROM symptom_radar_daily ORDER BY day DESC LIMIT 1"
         }
       ],
       "fieldConfig": {
@@ -263,42 +263,25 @@
             {
               "type": "value",
               "options": {
-                "none": {
-                  "text": "no symptoms",
-                  "color": "green"
-                },
-                "minor": {
-                  "text": "Minor Signs",
-                  "color": "orange"
-                },
-                "major": {
-                  "text": "Major signs",
-                  "color": "red"
-                },
-                "insufficient_data": {
-                  "text": "—",
-                  "color": "text"
-                }
+                "0": { "text": "no symptoms", "color": "green" },
+                "1": { "text": "Minor Signs", "color": "orange" },
+                "2": { "text": "Major signs", "color": "red" },
+                "-1": { "text": "—", "color": "text" }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 2 }
             ]
           }
         }
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "value"
@@ -425,7 +408,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT day AS \"Day\",\n  CASE level\n    WHEN 'none' THEN 'no symptoms'\n    WHEN 'minor' THEN 'Minor Signs'\n    WHEN 'major' THEN 'Major signs'\n    ELSE '—'\n  END AS \"Status\"\nFROM symptom_radar_daily\nORDER BY day DESC\nLIMIT 14"
+          "rawSql": "SELECT to_char(day, 'Mon FMDD') AS \"Day\",\n  CASE level\n    WHEN 'none' THEN 'no symptoms'\n    WHEN 'minor' THEN 'Minor Signs'\n    WHEN 'major' THEN 'Major signs'\n    ELSE '—'\n  END AS \"Status\"\nFROM symptom_radar_daily\nORDER BY day DESC\nLIMIT 14"
         }
       ],
       "options": {
@@ -484,8 +467,9 @@
     },
     {
       "type": "bargauge",
-      "title": "Readiness contributors (latest)",
+      "title": "Readiness factors",
       "id": 22,
+      "description": "How each factor scored in today's readiness (0–100). This is Oura's own breakdown of the readiness score.",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -501,7 +485,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT key AS contributor, value::float AS score\nFROM daily_readiness, jsonb_each_text(contributors)\nWHERE day = (SELECT max(day) FROM daily_readiness)\nORDER BY 1"
+          "rawSql": "SELECT CASE key\n  WHEN 'hrv_balance' THEN 'HRV'\n  WHEN 'sleep_balance' THEN 'Sleep'\n  WHEN 'previous_night' THEN 'Last night'\n  WHEN 'recovery_index' THEN 'Recovery'\n  WHEN 'activity_balance' THEN 'Activity'\n  WHEN 'body_temperature' THEN 'Temperature'\n  WHEN 'sleep_regularity' THEN 'Regularity'\n  WHEN 'resting_heart_rate' THEN 'Resting HR'\n  WHEN 'previous_day_activity' THEN 'Yesterday'\n  ELSE initcap(replace(key, '_', ' '))\nEND AS \"Factor\",\nvalue::float AS \"Score\"\nFROM daily_readiness, jsonb_each_text(contributors)\nWHERE day = (SELECT max(day) FROM daily_readiness)\nORDER BY 2 DESC"
         }
       ],
       "fieldConfig": {
@@ -593,20 +577,29 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT day_summary AS \"Stress\" FROM daily_stress ORDER BY day DESC LIMIT 1"
+          "rawSql": "SELECT CASE lower(day_summary)\n  WHEN 'restored' THEN 0 WHEN 'normal' THEN 1\n  WHEN 'stressful' THEN 2 ELSE -1 END AS \"Stress\"\nFROM daily_stress ORDER BY day DESC LIMIT 1"
         }
       ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "colorMode": "background",
-        "graphMode": "area"
-      },
       "fieldConfig": {
-        "defaults": {}
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "Restored", "color": "green" },
+                "1": { "text": "Normal", "color": "blue" },
+                "2": { "text": "Stressful", "color": "orange" },
+                "-1": { "text": "—", "color": "text" }
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
       }
     },
     {
@@ -662,7 +655,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT day, activity, intensity, calories, distance, start_datetime, end_datetime\nFROM workout ORDER BY start_datetime DESC NULLS LAST LIMIT 30"
+          "rawSql": "SELECT to_char(day, 'Mon FMDD') AS \"Date\",\n  initcap(replace(coalesce(nullif(activity, ''), nullif(label, ''), 'Workout'), '_', ' ')) AS \"Activity\",\n  initcap(coalesce(intensity, '')) AS \"Intensity\",\n  round(calories::numeric) AS \"kcal\",\n  CASE WHEN distance IS NOT NULL THEN round((distance / 1000.0)::numeric, 1) END AS \"km\"\nFROM workout\nORDER BY start_datetime DESC NULLS LAST\nLIMIT 20"
         }
       ],
       "options": {
@@ -688,17 +681,30 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT level AS \"Resilience\" FROM daily_resilience ORDER BY day DESC LIMIT 1"
+          "rawSql": "SELECT CASE lower(level)\n  WHEN 'limited' THEN 0 WHEN 'adequate' THEN 1\n  WHEN 'solid' THEN 2 WHEN 'strong' THEN 3 ELSE -1 END AS \"Resilience\"\nFROM daily_resilience ORDER BY day DESC LIMIT 1"
         }
       ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "Limited", "color": "red" },
+                "1": { "text": "Adequate", "color": "orange" },
+                "2": { "text": "Solid", "color": "green" },
+                "3": { "text": "Strong", "color": "blue" },
+                "-1": { "text": "—", "color": "text" }
+              }
+            }
           ]
-        },
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "background",
-        "graphMode": "area"
+        "graphMode": "none",
+        "textMode": "value"
       }
     },
     {
@@ -1190,7 +1196,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT day, bedtime_start, bedtime_end, round((total_sleep_duration/3600.0)::numeric,2) AS sleep_h, efficiency, average_hrv, average_heart_rate, lowest_heart_rate FROM sleep_period WHERE day BETWEEN ($__timeFrom()::date) AND ($__timeTo()::date) ORDER BY bedtime_start DESC LIMIT 60"
+          "rawSql": "SELECT to_char(day, 'Mon FMDD') AS \"Date\",\n  to_char(bedtime_start AT TIME ZONE current_setting('TIMEZONE'), 'HH24:MI') AS \"Asleep\",\n  to_char(bedtime_end AT TIME ZONE current_setting('TIMEZONE'), 'HH24:MI') AS \"Awake\",\n  round((total_sleep_duration/3600.0)::numeric,1) AS \"Hours\",\n  efficiency AS \"Eff %\",\n  average_hrv AS \"HRV\",\n  lowest_heart_rate AS \"Low HR\"\nFROM sleep_period\nWHERE day BETWEEN ($__timeFrom()::date) AND ($__timeTo()::date)\nORDER BY bedtime_start DESC LIMIT 40"
         }
       ],
       "options": {
