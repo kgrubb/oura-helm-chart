@@ -4,6 +4,13 @@ All notable changes to this chart are documented here.
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-07-23
+
+### Fixed
+- calibrate Symptom Radar v3 and rename to no signs
+
+
+
 ## [0.2.7] - 2026-07-23
 
 ### Fixed
