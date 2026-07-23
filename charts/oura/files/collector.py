@@ -270,7 +270,8 @@ def upsert_daily(conn, table: str, rows: list, cols: list[str], values) -> int:
     return len(rows)
 
 
-def sync_daily(conn, tok, name: str, cols: list[str], values) -> dict:
+def sync_daily(conn, tok, name: str, cols: list[str], values, table: str | None = None) -> dict:
+    table = table or name
     start, today = range_start(conn, name), date.today()
     rows, tok, code = fetch_all(tok, name, {"start_date": start.isoformat(), "end_date": today.isoformat()})
     if code in (401, 403):
@@ -279,7 +280,7 @@ def sync_daily(conn, tok, name: str, cols: list[str], values) -> dict:
     if code >= 400:
         log.error("%s failed code=%s", name, code)
         return tok
-    n = upsert_daily(conn, name, rows, cols, values)
+    n = upsert_daily(conn, table, rows, cols, values)
     set_watermark(conn, name, datetime.now(timezone.utc))
     log.info("%s upserted=%s range=%s..%s", name, n, start, today)
     return tok
@@ -509,8 +510,9 @@ def main() -> None:
             lambda r: (r.get("id") or r.get("day"), r.get("day"), r.get("vascular_age"), Jsonb(r)),
         )
         tok = sync_daily(
-            conn, tok, "vo2_max", ["vo2_max"],
+            conn, tok, "vO2_max", ["vo2_max"],
             lambda r: (r["id"], r.get("day"), r.get("vo2_max"), Jsonb(r)),
+            table="vo2_max",
         )
         tok = sync_daily(
             conn, tok, "sleep_time", ["recommendation", "status", "optimal_bedtime"],
