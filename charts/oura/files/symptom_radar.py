@@ -12,9 +12,9 @@ GAP_DAYS = 3
 MIN_NIGHTS_14D = 7
 
 _LEVEL_LABEL = {
-    "none": "No symptoms",
+    "none": "no symptoms",
     "minor": "Minor Signs",
-    "major": "Major Signs",
+    "major": "Major signs",
     "insufficient_data": "—",
 }
 

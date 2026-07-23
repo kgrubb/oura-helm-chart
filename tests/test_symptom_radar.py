@@ -93,7 +93,7 @@ class ScoreNightTest(unittest.TestCase):
         self.assertEqual(r["level"], "major")
         self.assertGreaterEqual(r["score"], 3)
         self.assertEqual(r["algorithm_version"], "v1")
-        self.assertEqual(r["summary_text"], "Major Signs")
+        self.assertEqual(r["summary_text"], "Major signs")
 
 
 if __name__ == "__main__":
