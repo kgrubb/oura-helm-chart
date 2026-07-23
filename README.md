@@ -17,9 +17,7 @@ helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
 
 Chart index: https://kgrubb.github.io/oura-helm-chart/
 
-Packages publish to gh-pages via chart-releaser. Copy the `GPG_PRIVATE_KEY` Actions
-secret from [stalwart-helm-chart](https://github.com/kgrubb/stalwart-helm-chart) to
-enable signed releases (same key as `pages/public.key`).
+Published packages are signed. Verify with the [public key](https://kgrubb.github.io/oura-helm-chart/public.key) on gh-pages.
 
 ## Prerequisites
 

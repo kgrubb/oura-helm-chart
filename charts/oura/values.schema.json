@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "minLength": 1 },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"]
+        }
+      },
+      "required": ["repository", "tag", "pullPolicy"]
+    },
+    "schedule": { "type": "string", "minLength": 1 },
+    "timeZone": { "type": "string", "minLength": 1 },
+    "concurrencyPolicy": {
+      "type": "string",
+      "enum": ["Allow", "Forbid", "Replace"]
+    },
+    "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+    "failedJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+    "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
+    "backoffLimit": { "type": "integer", "minimum": 0 },
+    "recentDays": { "type": "integer", "minimum": 1 },
+    "hrChunkDays": { "type": "integer", "minimum": 1 },
+    "pageSleepSeconds": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number", "minimum": 0 }
+      ]
+    },
+    "postgres": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": { "type": "string", "minLength": 1 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "database": { "type": "string", "minLength": 1 },
+        "user": { "type": "string", "minLength": 1 },
+        "existingSecret": { "type": "string" },
+        "passwordKey": { "type": "string", "minLength": 1 }
+      },
+      "required": ["host", "port", "database", "user", "existingSecret", "passwordKey"]
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "type": "string", "enum": ["pat", "oauth"] },
+        "existingSecret": { "type": "string" },
+        "patKey": { "type": "string", "minLength": 1 },
+        "clientIdKey": { "type": "string", "minLength": 1 },
+        "clientSecretKey": { "type": "string", "minLength": 1 }
+      },
+      "required": ["mode", "existingSecret", "patKey", "clientIdKey", "clientSecretKey"]
+    },
+    "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "accessMode": { "type": "string", "minLength": 1 },
+        "storageClass": { "type": "string" },
+        "size": { "type": "string", "minLength": 1 },
+        "mountPath": { "type": "string", "minLength": 1 },
+        "tokenFile": { "type": "string", "minLength": 1 }
+      },
+      "required": ["enabled", "accessMode", "storageClass", "size", "mountPath", "tokenFile"]
+    },
+    "backfill": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "startDate": { "type": "string", "minLength": 1 },
+        "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
+        "ttlSecondsAfterFinished": { "type": "integer", "minimum": 0 },
+        "resources": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": ["enabled", "startDate", "activeDeadlineSeconds", "ttlSecondsAfterFinished", "resources"]
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "extraEnv": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "nameOverride": { "type": "string" },
+    "fullnameOverride": { "type": "string" },
+    "podAnnotations": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "podLabels": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "nodeSelector": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "tolerations": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "affinity": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "image",
+    "schedule",
+    "timeZone",
+    "concurrencyPolicy",
+    "successfulJobsHistoryLimit",
+    "failedJobsHistoryLimit",
+    "activeDeadlineSeconds",
+    "backoffLimit",
+    "recentDays",
+    "hrChunkDays",
+    "pageSleepSeconds",
+    "postgres",
+    "auth",
+    "persistence",
+    "backfill",
+    "resources",
+    "extraEnv",
+    "nameOverride",
+    "fullnameOverride",
+    "podAnnotations",
+    "podLabels",
+    "nodeSelector",
+    "tolerations",
+    "affinity"
+  ]
+}

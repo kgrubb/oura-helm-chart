@@ -93,8 +93,9 @@ jobs:
           export GNUPGHOME="$gpg_dir"
           echo "GNUPGHOME=$gpg_dir" >> "$GITHUB_ENV"
           printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
-          gpg --list-secret-keys --keyid-format long | grep -q "CA999A73395F45FD"
-          gpg --export-secret-keys AFB495384FDAD4EDC0EBF8FECA999A73395F45FD > "$gpg_dir/secring.gpg"
+          fpr=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')
+          [[ -n "$fpr" ]]
+          gpg --export-secret-keys "$fpr" > "$gpg_dir/secring.gpg"
           test -s "$gpg_dir/secring.gpg"
           printf '\n' > "$gpg_dir/passphrase"
           echo "CR_KEYRING=$gpg_dir/secring.gpg" >> "$GITHUB_ENV"
