@@ -4,6 +4,13 @@ All notable changes to this chart are documented here.
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-07-23
+
+### Changed
+- backfill real changelog entries for all chart releases.
+
+
+
 ## [0.2.5] - 2026-07-23
 
 ### Fixed
