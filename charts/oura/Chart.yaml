@@ -27,6 +27,3 @@ annotations:
       url: https://github.com/kgrubb/oura-helm-chart/issues
     - name: source
       url: https://github.com/kgrubb/oura-helm-chart
-  artifacthub.io/signKey: |
-    fingerprint: AFB495384FDAD4EDC0EBF8FECA999A73395F45FD
-    url: https://kgrubb.github.io/oura-helm-chart/public.key

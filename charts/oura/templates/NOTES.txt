@@ -10,8 +10,8 @@
 {{- end }}
 4. Point Grafana (or any SQL client) at the database with a read-only role.
 
-CronJob {{ include "oura.fullname" . }} · {{ .Values.schedule }} ({{ .Values.timeZone }})
+CronJob {{ include "oura.fullname" . }} runs {{ .Values.schedule }} ({{ .Values.timeZone }})
 {{- if .Values.backfill.enabled }}
 
-Backfill Job is enabled — delete it after completion, or set backfill.enabled=false.
+Backfill Job is enabled. Delete it after completion, or set backfill.enabled=false.
 {{- end }}

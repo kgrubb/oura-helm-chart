@@ -93,7 +93,7 @@ def db():
 
 
 def load_token() -> dict:
-    # Prefer personal access token (Airbyte-style); else OAuth JSON on PVC.
+    # Prefer personal access token (Airbyte-style), else OAuth JSON on PVC.
     if pat := os.environ.get("OURA_PAT"):
         return {"access_token": pat, "pat": True}
     return json.loads(TOKEN_PATH.read_text())
@@ -108,7 +108,7 @@ def save_token(tok: dict) -> None:
 
 def refresh_token(tok: dict) -> dict:
     if tok.get("pat"):
-        raise RuntimeError("OURA_PAT rejected (401); rotate the personal access token")
+        raise RuntimeError("OURA_PAT rejected (401). Rotate the personal access token")
     body = urllib.parse.urlencode(
         {
             "grant_type": "refresh_token",

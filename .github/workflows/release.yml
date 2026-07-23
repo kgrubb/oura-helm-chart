@@ -41,7 +41,7 @@ jobs:
               BEFORE="$last_tag"
             fi
           elif [[ "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
-            # Ignore re-push of already-tagged history; allow brand-new repos.
+            # Ignore re-push of already-tagged history. Allow brand-new repos.
             [[ -n "$last_tag" ]] && exit 0
             first_release=true
           fi
@@ -52,7 +52,7 @@ jobs:
 
           if [[ "$first_release" == "true" ]] || [[ -z "$last_tag" ]]; then
             # Publish Chart.yaml version as-is for the first packaged release.
-            echo "First chart publish — keeping $(awk '/^version:/ { print $2 }' charts/oura/Chart.yaml)"
+            echo "First chart publish, keeping $(awk '/^version:/ { print $2 }' charts/oura/Chart.yaml)"
           else
             git diff --name-only "$last_tag" "$AFTER" -- charts/ | grep -q . || exit 0
             ./scripts/bump-chart-version.sh "$BEFORE" "$AFTER"
@@ -84,7 +84,7 @@ jobs:
           set -euo pipefail
           if [[ -z "${GPG_PRIVATE_KEY}" ]]; then
             echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "GPG_PRIVATE_KEY unset; publishing unsigned packages"
+            echo "GPG_PRIVATE_KEY unset, publishing unsigned packages"
             exit 0
           fi
           gpg_dir="$RUNNER_TEMP/gpg"
