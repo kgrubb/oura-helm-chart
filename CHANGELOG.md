@@ -4,6 +4,13 @@ All notable changes to this chart are documented here.
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-07-23
+
+### Fixed
+- make Symptom Radar conservative (v2) and clarify dashboard.
+
+
+
 ## [0.2.6] - 2026-07-23
 
 ### Changed
