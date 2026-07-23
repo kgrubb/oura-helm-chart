@@ -2,7 +2,7 @@
 """Sync Oura Ring API v2 into PostgreSQL.
 
 Incremental runs re-pull recentDays. Set BACKFILL=1 and START_DATE for history.
-Computes local Symptom Radar proxy after sync (no third-party inference).
+Computes Symptom Radar after sync.
 """
 from __future__ import annotations
 
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS symptom_radar_daily (
   n_signals int NOT NULL DEFAULT 0,
   contributors jsonb NOT NULL DEFAULT '[]',
   summary_text text NOT NULL DEFAULT '',
-  algorithm_version text NOT NULL DEFAULT 'proxy-v1',
+  algorithm_version text NOT NULL DEFAULT 'v1',
   computed_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS sync_state (
   resource text PRIMARY KEY, high_watermark timestamptz,

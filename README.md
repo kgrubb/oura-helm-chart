@@ -27,9 +27,9 @@ Published packages are signed. Verify with the [public key](https://kgrubb.githu
    - **Recommended:** personal access token (`auth.mode=pat`) from [Oura Cloud](https://cloud.ouraring.com/personal-access-tokens).
    - **Alternative:** OAuth client id/secret plus token JSON on a PVC (`auth.mode=oauth`).
 
-## Symptom Radar (proxy)
+## Symptom Radar
 
-After each sync the collector scores overnight biometrics locally into `symptom_radar_daily` (`none` / `minor` / `major`). This is a TemPredict/Ultrahuman-style baseline composite, **not** Oura Health Radar. No third-party inference.
+After each sync the collector scores overnight biometrics into `symptom_radar_daily` (`none` / `minor` / `major`).
 
 ## Grafana dashboard
 

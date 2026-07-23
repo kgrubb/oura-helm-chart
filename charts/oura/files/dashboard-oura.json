@@ -237,9 +237,8 @@
     },
     {
       "type": "stat",
-      "title": "Symptom Radar (proxy)",
+      "title": "Symptom Radar",
       "id": 20,
-      "description": "Local TemPredict/Ultrahuman-style proxy \u2014 not Oura's closed model.",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -265,11 +264,11 @@
               "type": "value",
               "options": {
                 "none": {
-                  "text": "No signs",
+                  "text": "no symptoms",
                   "color": "green"
                 },
                 "minor": {
-                  "text": "Minor signs",
+                  "text": "Minor Signs",
                   "color": "orange"
                 },
                 "major": {
@@ -277,7 +276,7 @@
                   "color": "red"
                 },
                 "insufficient_data": {
-                  "text": "Calibrating",
+                  "text": "—",
                   "color": "text"
                 }
               }
@@ -301,7 +300,8 @@
           ]
         },
         "colorMode": "background",
-        "graphMode": "area"
+        "graphMode": "none",
+        "textMode": "value"
       }
     },
     {
@@ -408,9 +408,8 @@
     },
     {
       "type": "table",
-      "title": "Radar detail (why)",
+      "title": "Radar Details",
       "id": 21,
-      "description": "Signals that contributed to the latest Symptom Radar (proxy) score.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -426,11 +425,61 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT day, level, score, summary_text\nFROM symptom_radar_daily\nORDER BY day DESC LIMIT 14"
+          "rawSql": "SELECT day AS \"Day\",\n  CASE level\n    WHEN 'none' THEN 'no symptoms'\n    WHEN 'minor' THEN 'Minor Signs'\n    WHEN 'major' THEN 'Major signs'\n    ELSE '—'\n  END AS \"Status\"\nFROM symptom_radar_daily\nORDER BY day DESC\nLIMIT 14"
         }
       ],
       "options": {
-        "showHeader": true
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "filterable": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "no symptoms": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "Minor Signs": {
+                        "color": "orange",
+                        "index": 1
+                      },
+                      "Major signs": {
+                        "color": "red",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -1149,5 +1198,5 @@
       }
     }
   ],
-  "description": "Oura API \u2192 Postgres. Symptom Radar is a local proxy, not Oura Health Radar."
+  "description": "Oura Ring metrics from PostgreSQL."
 }

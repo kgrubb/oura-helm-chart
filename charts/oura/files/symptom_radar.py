@@ -1,7 +1,4 @@
-"""Symptom Radar proxy: TemPredict/Ultrahuman-style multimodal baseline scoring.
-
-Local only. No third-party inference. algorithm_version=proxy-v1.
-"""
+"""Symptom Radar: overnight biometric baseline scoring."""
 from __future__ import annotations
 
 import statistics
@@ -9,10 +6,17 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
-ALGO = "proxy-v1"
+ALGO = "v1"
 BASELINE_NIGHTS = 28
 GAP_DAYS = 3
 MIN_NIGHTS_14D = 7
+
+_LEVEL_LABEL = {
+    "none": "No symptoms",
+    "minor": "Minor Signs",
+    "major": "Major Signs",
+    "insufficient_data": "—",
+}
 
 
 @dataclass(frozen=True)
@@ -93,17 +97,6 @@ def _level(score: int, ok: bool) -> str:
     return "none"
 
 
-def _fmt(c: dict) -> str:
-    s, v, b, z, p = c["signal"], c.get("value"), c.get("baseline"), c.get("z"), c["points"]
-    bits = [s]
-    if v is not None:
-        bits.append(f"{v:.2g}" if isinstance(v, float) else str(v))
-    if z is not None:
-        bits.append(f"z={z:.1f}")
-    bits.append(f"+{p}")
-    return " ".join(bits)
-
-
 def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
     """Score one night against prior history (must not include night itself)."""
     gate_start = night.day - timedelta(days=13)
@@ -140,7 +133,6 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
         series("inactive"), series("sleep_s"), series("rem_s"),
     )
 
-    # Temperature: absolute °C on Oura deviation + z of deviation series
     tz = _z(night.temp, temp_b)
     tp = 0
     if night.temp is not None:
@@ -150,7 +142,6 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
             tp = 1
     add("temp", night.temp, temp_b, tp)
 
-    # RHR ↑
     rz = _z(night.rhr, rhr_b)
     rp = 0
     if night.rhr is not None:
@@ -161,12 +152,10 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
             rp = 1
     add("rhr", night.rhr, rhr_b, rp)
 
-    # HRV ↓
     hz = _z(night.hrv, hrv_b)
     hp = _pts_low_z(hz, night.hrv, _median(hrv_b) if hrv_b else None, 0.90, 0.80)
     add("hrv", night.hrv, hrv_b, hp)
 
-    # RR ↑
     rrz = _z(night.rr, rr_b)
     rrp = 0
     if night.rr is not None:
@@ -177,18 +166,15 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
             rrp = 1
     add("rr", night.rr, rr_b, rrp)
 
-    # Inactive ↑
     iz = _z(night.inactive, ina_b)
     ip = _pts_high(iz, night.inactive, None, None, z1=1.0, z2=1.5)
     add("inactive", night.inactive, ina_b, ip)
 
-    # Sleep duration support (1 pt)
     if night.sleep_s is not None and sleep_b:
         med = _median(sleep_b)
         if night.sleep_s <= med - 3600:
             add("sleep", night.sleep_s, sleep_b, 1)
 
-    # REM support (1 pt)
     if night.rem_s is not None and rem_b:
         med = _median(rem_b)
         if med > 0 and night.rem_s <= med * 0.80:
@@ -196,12 +182,6 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
 
     level = _level(score, ok)
     fired = [c for c in contrib if c["points"] > 0]
-    if level == "insufficient_data":
-        summary = "insufficient_data: need ≥7 nights in 14d"
-    elif not fired:
-        summary = "none"
-    else:
-        summary = f"{level}: " + ", ".join(_fmt(c) for c in fired)
 
     return {
         "day": night.day,
@@ -210,6 +190,6 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
         "n_baseline_nights": n_base,
         "n_signals": len(fired),
         "contributors": fired,
-        "summary_text": summary,
+        "summary_text": _LEVEL_LABEL[level],
         "algorithm_version": ALGO,
     }

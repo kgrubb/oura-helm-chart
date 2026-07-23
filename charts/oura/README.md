@@ -20,7 +20,7 @@ CronJob that loads Oura Ring API v2 into PostgreSQL (daily metrics, sleep period
 | `dashboard.datasourceUid` | `oura-postgres` | Grafana Postgres datasource UID |
 | `resources` | modest defaults | Override per environment |
 
-The collector also writes a local **Symptom Radar (proxy)** into `symptom_radar_daily` (not Oura Health Radar).
+The collector also writes **Symptom Radar** results into `symptom_radar_daily`.
 
 Provision the database and roles outside the chart. Grant Grafana a read-only role separately.
 

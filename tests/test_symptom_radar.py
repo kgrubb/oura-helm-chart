@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Boundary tests for Symptom Radar proxy scoring."""
+"""Boundary tests for Symptom Radar scoring."""
 from __future__ import annotations
 
 import sys
@@ -92,7 +92,8 @@ class ScoreNightTest(unittest.TestCase):
         r = score_night(night, hist)
         self.assertEqual(r["level"], "major")
         self.assertGreaterEqual(r["score"], 3)
-        self.assertIn("proxy-v1", r["algorithm_version"])
+        self.assertEqual(r["algorithm_version"], "v1")
+        self.assertEqual(r["summary_text"], "Major Signs")
 
 
 if __name__ == "__main__":
