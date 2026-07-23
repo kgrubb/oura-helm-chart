@@ -1,4 +1,4 @@
-"""Symptom Radar: overnight biometric baseline scoring."""
+"""Symptom Radar: overnight biometric baseline scoring (v2)."""
 from __future__ import annotations
 
 import statistics
@@ -6,10 +6,13 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
-ALGO = "v1"
+ALGO = "v2"
 BASELINE_NIGHTS = 28
 GAP_DAYS = 3
 MIN_NIGHTS_14D = 7
+
+# Oura's public Symptom Radar inputs: temp, RHR, HRV, RR, inactive time.
+# Thresholds are conservative so quiet nights do not page as major.
 
 _LEVEL_LABEL = {
     "none": "no symptoms",
@@ -27,8 +30,6 @@ class Night:
     hrv: float | None = None
     rr: float | None = None
     inactive: float | None = None  # previous calendar day sedentary_time
-    sleep_s: float | None = None
-    rem_s: float | None = None
 
 
 def _median(xs: list[float]) -> float:
@@ -54,45 +55,13 @@ def _z(value: float | None, base: list[float]) -> float | None:
     return (value - _median(base)) / sig
 
 
-def _pts_high(z: float | None, value: float | None, abs1: float | None, abs2: float | None,
-              z1: float = 1.0, z2: float = 1.5) -> int:
-    """Points for signals where higher = strain."""
-    p = 0
-    if z is not None:
-        if z >= z2:
-            p = 2
-        elif z >= z1:
-            p = 1
-    if value is not None and abs2 is not None and value >= abs2:
-        p = max(p, 2)
-    elif value is not None and abs1 is not None and value >= abs1:
-        p = max(p, 1)
-    return p
-
-
-def _pts_low_z(z: float | None, value: float | None, baseline: float | None,
-               pct1: float, pct2: float, z1: float = -1.0, z2: float = -1.5) -> int:
-    """Points for signals where lower = strain (HRV)."""
-    p = 0
-    if z is not None:
-        if z <= z2:
-            p = 2
-        elif z <= z1:
-            p = 1
-    if value is not None and baseline and baseline > 0:
-        if value <= baseline * pct2:
-            p = max(p, 2)
-        elif value <= baseline * pct1:
-            p = max(p, 1)
-    return p
-
-
-def _level(score: int, ok: bool) -> str:
+def _level(score: int, n_signals: int, ok: bool) -> str:
     if not ok:
         return "insufficient_data"
-    if score >= 3:
+    # Major needs several meaningful hits; a single strong 2pt signal is minor.
+    if score >= 4 and n_signals >= 2:
         return "major"
-    if score == 2:
+    if score >= 2:
         return "minor"
     return "none"
 
@@ -128,60 +97,65 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
         })
         score += points
 
-    temp_b, rhr_b, hrv_b, rr_b, ina_b, sleep_b, rem_b = (
-        series("temp"), series("rhr"), series("hrv"), series("rr"),
-        series("inactive"), series("sleep_s"), series("rem_s"),
+    temp_b, rhr_b, hrv_b, rr_b, ina_b = (
+        series("temp"), series("rhr"), series("hrv"), series("rr"), series("inactive"),
     )
 
+    # Temperature (°C deviation from Oura): absolute first, z only as backup.
     tz = _z(night.temp, temp_b)
     tp = 0
     if night.temp is not None:
-        if night.temp >= 0.5 or (tz is not None and tz >= 2.0):
+        if night.temp >= 0.6 or (tz is not None and tz >= 2.5):
             tp = 2
-        elif night.temp >= 0.3 or (tz is not None and tz >= 1.0):
+        elif night.temp >= 0.4 or (tz is not None and tz >= 2.0):
             tp = 1
     add("temp", night.temp, temp_b, tp)
 
+    # Resting HR ↑
     rz = _z(night.rhr, rhr_b)
     rp = 0
     if night.rhr is not None:
         med = _median(rhr_b) if rhr_b else None
-        if (rz is not None and rz >= 1.5) or (med and night.rhr >= med + 5):
+        if (rz is not None and rz >= 2.0) or (med is not None and night.rhr >= med + 8):
             rp = 2
-        elif (rz is not None and rz >= 1.0) or (med and med > 0 and night.rhr >= med * 1.05):
+        elif (rz is not None and rz >= 1.5) or (med is not None and night.rhr >= med + 5):
             rp = 1
     add("rhr", night.rhr, rhr_b, rp)
 
+    # HRV ↓
     hz = _z(night.hrv, hrv_b)
-    hp = _pts_low_z(hz, night.hrv, _median(hrv_b) if hrv_b else None, 0.90, 0.80)
+    hp = 0
+    if night.hrv is not None:
+        med = _median(hrv_b) if hrv_b else None
+        if (hz is not None and hz <= -2.0) or (med and night.hrv <= med * 0.75):
+            hp = 2
+        elif (hz is not None and hz <= -1.5) or (med and night.hrv <= med * 0.80):
+            hp = 1
     add("hrv", night.hrv, hrv_b, hp)
 
+    # Respiratory rate ↑
     rrz = _z(night.rr, rr_b)
     rrp = 0
     if night.rr is not None:
         med = _median(rr_b) if rr_b else None
-        if (rrz is not None and rrz >= 1.5) or (med is not None and night.rr >= med + 1.5):
+        if (rrz is not None and rrz >= 2.0) or (med is not None and night.rr >= med + 2.0):
             rrp = 2
-        elif (rrz is not None and rrz >= 1.0) or (med is not None and night.rr >= med + 1.0):
+        elif (rrz is not None and rrz >= 1.5) or (med is not None and night.rr >= med + 1.5):
             rrp = 1
     add("rr", night.rr, rr_b, rrp)
 
+    # Inactive time ↑ (previous day)
     iz = _z(night.inactive, ina_b)
-    ip = _pts_high(iz, night.inactive, None, None, z1=1.0, z2=1.5)
+    ip = 0
+    if night.inactive is not None and iz is not None:
+        if iz >= 2.0:
+            ip = 2
+        elif iz >= 1.5:
+            ip = 1
     add("inactive", night.inactive, ina_b, ip)
 
-    if night.sleep_s is not None and sleep_b:
-        med = _median(sleep_b)
-        if night.sleep_s <= med - 3600:
-            add("sleep", night.sleep_s, sleep_b, 1)
-
-    if night.rem_s is not None and rem_b:
-        med = _median(rem_b)
-        if med > 0 and night.rem_s <= med * 0.80:
-            add("rem", night.rem_s, rem_b, 1)
-
-    level = _level(score, ok)
     fired = [c for c in contrib if c["points"] > 0]
+    level = _level(score, len(fired), ok)
 
     return {
         "day": night.day,

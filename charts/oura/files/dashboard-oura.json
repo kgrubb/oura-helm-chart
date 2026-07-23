@@ -467,9 +467,9 @@
     },
     {
       "type": "bargauge",
-      "title": "Readiness factors",
+      "title": "Readiness breakdown",
       "id": 22,
-      "description": "How each factor scored in today's readiness (0–100). This is Oura's own breakdown of the readiness score.",
+      "description": "How Oura built today's Readiness score. Each bar is one piece of that score (0–100). This is not Symptom Radar.",
       "gridPos": {
         "h": 8,
         "w": 6,
@@ -711,6 +711,7 @@
       "type": "stat",
       "title": "VO2 max",
       "id": 28,
+      "description": "Shown when Oura has published a VO2 estimate for your account. Many accounts have none yet.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -726,22 +727,33 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT vo2_max AS \"VO2\" FROM vo2_max ORDER BY day DESC LIMIT 1"
+          "rawSql": "SELECT COALESCE(\n  (SELECT vo2_max FROM vo2_max ORDER BY day DESC LIMIT 1),\n  -1\n) AS \"VO2\""
         }
       ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "colorMode": "background",
-        "graphMode": "area"
-      },
       "fieldConfig": {
         "defaults": {
-          "unit": "none"
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": { "text": "Unavailable", "color": "text" }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "text", "value": null },
+              { "color": "blue", "value": 0 }
+            ]
+          }
         }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
       }
     },
     {

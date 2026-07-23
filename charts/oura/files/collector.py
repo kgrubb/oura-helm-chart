@@ -402,7 +402,7 @@ def sync_heartrate(conn, tok) -> dict:
     return tok
 
 
-def _pick_sleep(rows: list) -> dict | None:
+def _pick_sleep(rows: list) -> tuple | None:
     pool = [r for r in rows if r[1] == "long_sleep"] or rows
     return max(pool, key=lambda r: (r[5] or 0)) if pool else None
 
@@ -412,7 +412,7 @@ def compute_symptom_radar(conn, from_day: date | None = None) -> int:
     with conn.cursor() as cur:
         cur.execute(
             """SELECT day, type, lowest_heart_rate, average_hrv, average_breath,
-                      total_sleep_duration, rem_sleep_duration
+                      total_sleep_duration
                FROM sleep_period WHERE day IS NOT NULL ORDER BY day""")
         by_day: dict[date, list] = {}
         for row in cur.fetchall():
@@ -429,7 +429,7 @@ def compute_symptom_radar(conn, from_day: date | None = None) -> int:
             continue
         nights.append(Night(
             day=d, temp=temp.get(d), rhr=pick[2], hrv=pick[3], rr=pick[4],
-            inactive=sedentary.get(d - timedelta(days=1)), sleep_s=pick[5], rem_s=pick[6],
+            inactive=sedentary.get(d - timedelta(days=1)),
         ))
 
     n = 0
