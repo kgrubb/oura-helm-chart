@@ -6,6 +6,9 @@ metadata:
   labels:
     {{- include "oura.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector
+  annotations:
+    # Keep OAuth token across helm uninstall/reinstall (k3s failurePolicy=reinstall).
+    helm.sh/resource-policy: keep
 spec:
   accessModes:
     - {{ .Values.persistence.accessMode }}
