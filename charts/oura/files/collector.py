@@ -417,18 +417,25 @@ def compute_symptom_radar(conn, from_day: date | None = None) -> int:
         by_day: dict[date, list] = {}
         for row in cur.fetchall():
             by_day.setdefault(row[0], []).append(row)
-        cur.execute("SELECT day, temperature_deviation FROM daily_readiness")
-        temp = dict(cur.fetchall())
-        cur.execute("SELECT day, sedentary_time FROM daily_activity")
-        sedentary = dict(cur.fetchall())
+        cur.execute(
+            "SELECT day, temperature_deviation, temperature_trend_deviation FROM daily_readiness"
+        )
+        readiness = {d: (t, tr) for d, t, tr in cur.fetchall()}
+        cur.execute(
+            """SELECT day,
+                      COALESCE(sedentary_time, NULLIF(raw->>'sedentary_time','')::double precision)
+               FROM daily_activity"""
+        )
+        sedentary = {d: s for d, s in cur.fetchall()}
 
     nights = []
     for d in sorted(by_day):
         pick = _pick_sleep(by_day[d])
         if not pick:
             continue
+        temp, trend = readiness.get(d, (None, None))
         nights.append(Night(
-            day=d, temp=temp.get(d), rhr=pick[2], hrv=pick[3], rr=pick[4],
+            day=d, temp=temp, trend=trend, rhr=pick[2], hrv=pick[3], rr=pick[4],
             inactive=sedentary.get(d - timedelta(days=1)),
         ))
 
@@ -522,9 +529,9 @@ def main() -> None:
         tok = sync_sleep(conn, tok)
         tok = sync_workout(conn, tok)
         sync_heartrate(conn, tok)
-        compute_symptom_radar(
-            conn, date.fromisoformat(START_DATE) if BACKFILL else date.today() - timedelta(days=RECENT_DAYS),
-        )
+        # Radar is local/cheap; recompute a long window so algo updates refresh history.
+        radar_from = date.fromisoformat(START_DATE) if BACKFILL else date.today() - timedelta(days=120)
+        compute_symptom_radar(conn, radar_from)
     log.info("done")
 
 

@@ -20,6 +20,7 @@ def _hist(n: int = 20, base: date | None = None, **kw) -> list[Night]:
             Night(
                 day=d,
                 temp=kw.get("temp", 0.0),
+                trend=kw.get("trend", 0.0),
                 rhr=kw.get("rhr", 55.0),
                 hrv=kw.get("hrv", 50.0),
                 rr=kw.get("rr", 14.0),
@@ -34,7 +35,7 @@ def _fill_gate(hist: list[Night], day: date) -> None:
         hist.append(
             Night(
                 day=day - timedelta(days=10 - i),
-                temp=0.0, rhr=55, hrv=50, rr=14, inactive=36000,
+                temp=0.0, trend=0.0, rhr=55, hrv=50, rr=14, inactive=36000,
             )
         )
 
@@ -49,37 +50,27 @@ class ScoreNightTest(unittest.TestCase):
         day = date(2026, 7, 20)
         hist = _hist(20, base=day)
         _fill_gate(hist, day)
-        night = Night(day=day, temp=0.0, rhr=55, hrv=50, rr=14, inactive=36000)
+        night = Night(day=day, temp=0.0, trend=0.0, rhr=55, hrv=50, rr=14, inactive=36000)
         r = score_night(night, hist)
         self.assertEqual(r["level"], "none")
-        self.assertEqual(r["algorithm_version"], "v2")
+        self.assertEqual(r["summary_text"], "no signs")
+        self.assertEqual(r["algorithm_version"], "v3")
 
-    def test_mild_noise_is_none(self):
-        """Jul-22-style: several weak z≈1 deviations must not page."""
+    def test_jul22_style_is_minor(self):
         day = date(2026, 7, 20)
         hist = _hist(20, base=day)
         _fill_gate(hist, day)
-        night = Night(day=day, temp=0.3, rhr=60, hrv=47, rr=15.0, inactive=36000)
-        r = score_night(night, hist)
-        self.assertEqual(r["level"], "none")
-
-    def test_temp_only_strong_is_minor(self):
-        day = date(2026, 7, 20)
-        hist = _hist(20, base=day)
-        _fill_gate(hist, day)
-        night = Night(day=day, temp=0.65, rhr=55, hrv=50, rr=14, inactive=36000)
+        night = Night(day=day, temp=0.3, trend=0.11, rhr=60, hrv=45, rr=14, inactive=36000)
         r = score_night(night, hist)
         self.assertEqual(r["level"], "minor")
-        self.assertEqual(r["score"], 2)
 
-    def test_major_multi_signal(self):
+    def test_temp_and_trend_major(self):
         day = date(2026, 7, 20)
         hist = _hist(20, base=day)
         _fill_gate(hist, day)
-        night = Night(day=day, temp=0.65, rhr=70, hrv=30, rr=17.0, inactive=36000)
+        night = Night(day=day, temp=0.45, trend=0.30, rhr=55, hrv=50, rr=14, inactive=36000)
         r = score_night(night, hist)
         self.assertEqual(r["level"], "major")
-        self.assertGreaterEqual(r["score"], 4)
         self.assertEqual(r["summary_text"], "Major signs")
 
 

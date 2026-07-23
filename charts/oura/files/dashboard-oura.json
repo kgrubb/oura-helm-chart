@@ -263,7 +263,7 @@
             {
               "type": "value",
               "options": {
-                "0": { "text": "no symptoms", "color": "green" },
+                "0": { "text": "no signs", "color": "green" },
                 "1": { "text": "Minor Signs", "color": "orange" },
                 "2": { "text": "Major signs", "color": "red" },
                 "-1": { "text": "—", "color": "text" }
@@ -408,7 +408,7 @@
           "refId": "A",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT to_char(day, 'Mon FMDD') AS \"Day\",\n  CASE level\n    WHEN 'none' THEN 'no symptoms'\n    WHEN 'minor' THEN 'Minor Signs'\n    WHEN 'major' THEN 'Major signs'\n    ELSE '—'\n  END AS \"Status\"\nFROM symptom_radar_daily\nORDER BY day DESC\nLIMIT 14"
+          "rawSql": "SELECT to_char(day, 'Mon FMDD') AS \"Day\",\n  CASE level\n    WHEN 'none' THEN 'no signs'\n    WHEN 'minor' THEN 'Minor Signs'\n    WHEN 'major' THEN 'Major signs'\n    ELSE '—'\n  END AS \"Status\"\nFROM symptom_radar_daily\nORDER BY day DESC\nLIMIT 14"
         }
       ],
       "options": {
@@ -438,7 +438,7 @@
                   {
                     "type": "value",
                     "options": {
-                      "no symptoms": {
+                      "no signs": {
                         "color": "green",
                         "index": 0
                       },

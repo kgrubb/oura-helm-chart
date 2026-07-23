@@ -29,7 +29,7 @@ Published packages are signed. Verify with the [public key](https://kgrubb.githu
 
 ## Symptom Radar
 
-After each sync the collector scores overnight biometrics into `symptom_radar_daily` (`none` / `minor` / `major`).
+After each sync the collector scores overnight biometrics into `symptom_radar_daily` (`none` / `minor` / `major`, shown as no signs / Minor Signs / Major signs).
 
 ## OAuth scopes
 

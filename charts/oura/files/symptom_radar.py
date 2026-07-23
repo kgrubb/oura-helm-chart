@@ -1,4 +1,8 @@
-"""Symptom Radar: overnight biometric baseline scoring (v2)."""
+"""Symptom Radar: overnight biometric baseline scoring (v3).
+
+Calibrated against labeled nights. Uses temp, temp trend, RHR, HRV, RR,
+and previous-day sedentary time.
+"""
 from __future__ import annotations
 
 import statistics
@@ -6,16 +10,13 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
-ALGO = "v2"
+ALGO = "v3"
 BASELINE_NIGHTS = 28
 GAP_DAYS = 3
 MIN_NIGHTS_14D = 7
 
-# Oura's public Symptom Radar inputs: temp, RHR, HRV, RR, inactive time.
-# Thresholds are conservative so quiet nights do not page as major.
-
 _LEVEL_LABEL = {
-    "none": "no symptoms",
+    "none": "no signs",
     "minor": "Minor Signs",
     "major": "Major signs",
     "insufficient_data": "—",
@@ -26,6 +27,7 @@ _LEVEL_LABEL = {
 class Night:
     day: date
     temp: float | None = None
+    trend: float | None = None  # temperature_trend_deviation
     rhr: float | None = None
     hrv: float | None = None
     rr: float | None = None
@@ -58,8 +60,7 @@ def _z(value: float | None, base: list[float]) -> float | None:
 def _level(score: int, n_signals: int, ok: bool) -> str:
     if not ok:
         return "insufficient_data"
-    # Major needs several meaningful hits; a single strong 2pt signal is minor.
-    if score >= 4 and n_signals >= 2:
+    if score >= 4 and n_signals >= 1:
         return "major"
     if score >= 2:
         return "minor"
@@ -67,7 +68,6 @@ def _level(score: int, n_signals: int, ok: bool) -> str:
 
 
 def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
-    """Score one night against prior history (must not include night itself)."""
     gate_start = night.day - timedelta(days=13)
     recent = [h for h in history if gate_start <= h.day < night.day]
     ok = len(recent) >= MIN_NIGHTS_14D
@@ -97,28 +97,39 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
         })
         score += points
 
-    temp_b, rhr_b, hrv_b, rr_b, ina_b = (
-        series("temp"), series("rhr"), series("hrv"), series("rr"), series("inactive"),
+    temp_b, trend_b, rhr_b, hrv_b, rr_b, ina_b = (
+        series("temp"), series("trend"), series("rhr"),
+        series("hrv"), series("rr"), series("inactive"),
     )
 
-    # Temperature (°C deviation from Oura): absolute first, z only as backup.
+    # Skin temperature deviation (°C)
     tz = _z(night.temp, temp_b)
     tp = 0
     if night.temp is not None:
-        if night.temp >= 0.6 or (tz is not None and tz >= 2.5):
+        if night.temp >= 0.45 or (tz is not None and tz >= 2.5):
             tp = 2
-        elif night.temp >= 0.4 or (tz is not None and tz >= 2.0):
+        elif night.temp >= 0.25 or (tz is not None and tz >= 1.5):
             tp = 1
     add("temp", night.temp, temp_b, tp)
+
+    # Temperature trend deviation
+    trz = _z(night.trend, trend_b)
+    trp = 0
+    if night.trend is not None:
+        if night.trend >= 0.25 or (trz is not None and trz >= 2.5):
+            trp = 2
+        elif trz is not None and trz >= 1.5:
+            trp = 1
+    add("trend", night.trend, trend_b, trp)
 
     # Resting HR ↑
     rz = _z(night.rhr, rhr_b)
     rp = 0
     if night.rhr is not None:
         med = _median(rhr_b) if rhr_b else None
-        if (rz is not None and rz >= 2.0) or (med is not None and night.rhr >= med + 8):
+        if (rz is not None and rz >= 1.75) or (med is not None and night.rhr >= med + 7):
             rp = 2
-        elif (rz is not None and rz >= 1.5) or (med is not None and night.rhr >= med + 5):
+        elif (rz is not None and rz >= 1.25) or (med is not None and night.rhr >= med + 3):
             rp = 1
     add("rhr", night.rhr, rhr_b, rp)
 
@@ -127,9 +138,9 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
     hp = 0
     if night.hrv is not None:
         med = _median(hrv_b) if hrv_b else None
-        if (hz is not None and hz <= -2.0) or (med and night.hrv <= med * 0.75):
+        if (hz is not None and hz <= -1.75) or (med and night.hrv <= med * 0.75):
             hp = 2
-        elif (hz is not None and hz <= -1.5) or (med and night.hrv <= med * 0.80):
+        elif (hz is not None and hz <= -1.25) or (med and night.hrv <= med * 0.90):
             hp = 1
     add("hrv", night.hrv, hrv_b, hp)
 
@@ -138,19 +149,19 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
     rrp = 0
     if night.rr is not None:
         med = _median(rr_b) if rr_b else None
-        if (rrz is not None and rrz >= 2.0) or (med is not None and night.rr >= med + 2.0):
+        if (rrz is not None and rrz >= 2.0) or (med is not None and night.rr >= med + 1.5):
             rrp = 2
-        elif (rrz is not None and rrz >= 1.5) or (med is not None and night.rr >= med + 1.5):
+        elif (rrz is not None and rrz >= 1.5) or (med is not None and night.rr >= med + 1.0):
             rrp = 1
     add("rr", night.rr, rr_b, rrp)
 
-    # Inactive time ↑ (previous day)
+    # Previous-day sedentary time ↑
     iz = _z(night.inactive, ina_b)
     ip = 0
     if night.inactive is not None and iz is not None:
-        if iz >= 2.0:
+        if iz >= 1.75:
             ip = 2
-        elif iz >= 1.5:
+        elif iz >= 1.0:
             ip = 1
     add("inactive", night.inactive, ina_b, ip)
 
