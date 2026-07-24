@@ -16,6 +16,44 @@ entries:
         url: https://kgrubb.github.io/oura-helm-chart/public.key
     apiVersion: v2
     appVersion: 0.1.0
+    created: "2026-07-24T03:01:29.643284137Z"
+    description: Sync Oura Ring API v2 data into PostgreSQL
+    digest: 1a91bdd5c83747c850532c9638adcbc9c083d0bad1030860a9eee80cff257c4c
+    home: https://cloud.ouraring.com/v2/docs
+    icon: https://kgrubb.github.io/oura-helm-chart/logo.svg
+    keywords:
+    - oura
+    - health
+    - postgres
+    - grafana
+    - cronjob
+    maintainers:
+    - email: 8471701+kgrubb@users.noreply.github.com
+      name: kgrubb
+      url: https://github.com/kgrubb
+    name: oura
+    sources:
+    - https://cloud.ouraring.com/v2/docs
+    - https://github.com/kgrubb/oura-helm-chart
+    type: application
+    urls:
+    - oura-0.2.10.tgz
+    version: 0.2.10
+  - annotations:
+      artifacthub.io/category: integration-delivery
+      artifacthub.io/containsSecurityUpdates: "false"
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: support
+          url: https://github.com/kgrubb/oura-helm-chart/issues
+        - name: source
+          url: https://github.com/kgrubb/oura-helm-chart
+      artifacthub.io/prerelease: "false"
+      artifacthub.io/signKey: |
+        fingerprint: 9D14AFA7672D09B60F1116886551521D24B1ECB3
+        url: https://kgrubb.github.io/oura-helm-chart/public.key
+    apiVersion: v2
+    appVersion: 0.1.0
     created: "2026-07-23T22:36:54.199712695Z"
     description: Sync Oura Ring API v2 data into PostgreSQL
     digest: 8391b595e3aef1019670fec5843644a5d4e10545cce810028830bacda5aec74a
@@ -488,4 +526,4 @@ entries:
     urls:
     - oura-0.1.0.tgz
     version: 0.1.0
-generated: "2026-07-23T22:36:54.199824013Z"
+generated: "2026-07-24T03:01:29.643386368Z"
