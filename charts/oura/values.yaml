@@ -1,8 +1,14 @@
-# Container image. uv installs psycopg at job start (no custom image required).
+# Default values for the oura chart.
+
+quickstart:
+  enabled: false  # create Secrets from values and enable bootstrap, dashboard, datasource
+
 image:
-  repository: ghcr.io/astral-sh/uv
-  tag: python3.12-alpine
+  repository: ghcr.io/kgrubb/oura-collector
+  tag: ""  # defaults to Chart.AppVersion
   pullPolicy: IfNotPresent
+
+imagePullSecrets: []
 
 schedule: "*/15 * * * *"
 timeZone: UTC
@@ -12,12 +18,10 @@ failedJobsHistoryLimit: 3
 activeDeadlineSeconds: 7200
 backoffLimit: 1
 
-# Trailing days re-fetched every run (Oura revises documents after phone sync).
 recentDays: 14
 hrChunkDays: 7
 pageSleepSeconds: "0.25"
 
-# Target database (provision outside the chart).
 postgres:
   host: postgres
   port: 5432
@@ -25,16 +29,39 @@ postgres:
   user: oura
   existingSecret: ""
   passwordKey: password
+  password: ""  # used if existingSecret is unset
+  passwordRo: ""  # read-only role password if existingSecret is unset
+  bootstrap:
+    enabled: false
+    image:
+      repository: postgres
+      tag: "16-alpine"
+      pullPolicy: IfNotPresent
+    admin:
+      user: postgres
+      existingSecret: ""
+      passwordKey: password
+      password: ""  # used if admin.existingSecret is unset
+    readOnlyUser: ""  # e.g. oura_ro. Quickstart defaults to oura_ro. Requires that key in the DB Secret.
+    readOnlyPasswordKey: password-ro
+    sslMode: prefer
+    ttlSecondsAfterFinished: 86400
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
 
-# Prefer a personal access token: https://cloud.ouraring.com/personal-access-tokens
+# https://cloud.ouraring.com/personal-access-tokens
 auth:
-  mode: pat # pat | oauth
+  mode: pat  # pat | oauth
   existingSecret: ""
   patKey: OURA_PAT
+  pat: ""  # used if existingSecret is unset and mode=pat
   clientIdKey: OURA_CLIENT_ID
   clientSecretKey: OURA_CLIENT_SECRET
 
-# Token PVC when auth.mode=oauth.
 persistence:
   enabled: true
   accessMode: ReadWriteOnce
@@ -43,7 +70,6 @@ persistence:
   mountPath: /token
   tokenFile: oauth_token.json
 
-# Historical catch-up Job (delete/recreate to re-run).
 backfill:
   enabled: false
   startDate: "2015-01-01"
@@ -65,15 +91,48 @@ resources:
 
 extraEnv: {}
 
-# Optional Grafana sidecar dashboard (kube-prometheus-stack label grafana_dashboard=1).
 dashboard:
   enabled: false
+  createDatasource: false
   labels:
     grafana_dashboard: "1"
   datasourceUid: oura-postgres
+  datasource:
+    labels:
+      grafana_datasource: "1"
+    name: Oura Postgres
+    user: ""
+    existingSecret: ""
+    passwordKey: ""
+    password: ""
+    sslMode: disable
+    postgresVersion: 1500
+
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  name: ""
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
 
 nameOverride: ""
 fullnameOverride: ""
+commonLabels: {}
+commonAnnotations: {}
 podAnnotations: {}
 podLabels: {}
 nodeSelector: {}

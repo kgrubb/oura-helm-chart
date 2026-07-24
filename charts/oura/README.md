@@ -1,27 +1,45 @@
 # oura
 
-CronJob that loads Oura Ring API v2 into PostgreSQL (daily metrics, sleep periods/stages, heart rate).
+Helm chart that syncs [Oura Ring](https://ouraring.com/) API v2 data into PostgreSQL.
 
-## Values
+Full install guide: [repository README](https://github.com/kgrubb/oura-helm-chart#readme).
 
-| Key | Default | Notes |
+## TL;DR
+
+```bash
+helm repo add kgrubb-oura https://kgrubb.github.io/oura-helm-chart
+helm repo update
+
+helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
+  --set quickstart.enabled=true \
+  --set postgres.host=postgres.postgres.svc.cluster.local \
+  --set postgres.bootstrap.admin.password='ADMIN_PASSWORD' \
+  --set postgres.password='APP_PASSWORD' \
+  --set postgres.passwordRo='RO_PASSWORD' \
+  --set auth.pat='OURA_PAT'
+```
+
+## Prerequisites
+
+- Kubernetes 1.25+
+- Helm 4
+- PostgreSQL
+- Oura PAT or OAuth credentials
+
+## Configuration
+
+| Parameter | Description | Default |
 | --- | --- | --- |
-| `image.repository` | `ghcr.io/astral-sh/uv` | Runtime image (`python3.12-alpine` tag) |
-| `schedule` | `*/15 * * * *` | Cron expression |
-| `timeZone` | `UTC` | CronJob `timeZone` |
-| `recentDays` | `14` | Trailing days re-fetched every run |
-| `postgres.host` | `postgres` | PostgreSQL hostname |
-| `postgres.existingSecret` | `""` | **Required.** DB password Secret |
-| `auth.mode` | `pat` | `pat` or `oauth` |
-| `auth.existingSecret` | `""` | **Required.** Oura credentials Secret |
-| `persistence.enabled` | `true` | Token PVC when `auth.mode=oauth` |
-| `backfill.enabled` | `false` | One-shot historical Job |
-| `dashboard.enabled` | `false` | Grafana sidecar dashboard ConfigMap |
-| `dashboard.datasourceUid` | `oura-postgres` | Grafana Postgres datasource UID |
-| `resources` | modest defaults | Override per environment |
+| `quickstart.enabled` | Create Secrets from values and enable bootstrap, dashboard, datasource | `false` |
+| `schedule` | Collector cron expression | `*/15 * * * *` |
+| `postgres.host` | PostgreSQL hostname | `postgres` |
+| `postgres.existingSecret` | DB password Secret (or set `postgres.password`) | `""` |
+| `auth.mode` | `pat` or `oauth` | `pat` |
+| `auth.existingSecret` | Oura credentials Secret (or set `auth.pat`) | `""` |
+| `postgres.bootstrap.enabled` | Create database and roles | `false` |
+| `postgres.bootstrap.readOnlyUser` | Optional RO role. Quickstart defaults to `oura_ro` | `""` |
+| `dashboard.enabled` | Grafana dashboard ConfigMap | `false` |
+| `dashboard.createDatasource` | Grafana datasource Secret | `false` |
+| `backfill.enabled` | One-shot historical sync Job | `false` |
 
-The collector also writes **Symptom Radar** results into `symptom_radar_daily`.
-
-Provision the database and roles outside the chart. Grant Grafana a read-only role separately.
-
-See [values.yaml](values.yaml) and the [Oura API v2 docs](https://cloud.ouraring.com/v2/docs).
+Defaults: [values.yaml](values.yaml).

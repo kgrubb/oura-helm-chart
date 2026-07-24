@@ -3,87 +3,178 @@
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/oura-helm)](https://artifacthub.io/packages/search?repo=oura-helm)
 [![CI](https://github.com/kgrubb/oura-helm-chart/actions/workflows/ci.yml/badge.svg)](https://github.com/kgrubb/oura-helm-chart/actions/workflows/ci.yml)
 
-Helm chart that syncs [Oura Ring](https://ouraring.com/) API v2 data into PostgreSQL.
+Helm chart that syncs [Oura Ring](https://ouraring.com/) API v2 data into PostgreSQL on a schedule, with an optional Grafana dashboard.
 
-## Install
+## TL;DR
 
 ```bash
 helm repo add kgrubb-oura https://kgrubb.github.io/oura-helm-chart
 helm repo update
+
 helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
+  --set quickstart.enabled=true \
+  --set postgres.host=postgres.postgres.svc.cluster.local \
+  --set postgres.bootstrap.admin.password='ADMIN_PASSWORD' \
+  --set postgres.password='APP_PASSWORD' \
+  --set postgres.passwordRo='RO_PASSWORD' \
+  --set auth.pat='OURA_PAT'
+```
+
+Packages are signed. Verify with the [public key](https://kgrubb.github.io/oura-helm-chart/public.key).
+
+## Introduction
+
+This chart deploys a CronJob that pulls Oura API v2 data into PostgreSQL (daily metrics, sleep, heart rate, workouts, and related tables). Each run also refreshes Symptom Radar scores.
+
+Optional pieces:
+
+- Database bootstrap (create database and app roles)
+- Grafana dashboard ConfigMap (sidecar-friendly labels)
+- Grafana Postgres datasource Secret
+
+The chart does **not** install PostgreSQL or Grafana. Point it at instances you already run.
+
+## Prerequisites
+
+- Kubernetes 1.25+
+- Helm 4
+- A reachable PostgreSQL server
+- An [Oura personal access token](https://cloud.ouraring.com/personal-access-tokens) (or OAuth client credentials)
+
+## Installing the Chart
+
+Add the repository:
+
+```bash
+helm repo add kgrubb-oura https://kgrubb.github.io/oura-helm-chart
+helm repo update
+```
+
+### Option A — Quickstart
+
+Pass credentials as values. The chart creates Secrets, bootstraps the database, and enables the Grafana dashboard + datasource.
+
+```bash
+helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
+  --set quickstart.enabled=true \
+  --set postgres.host=postgres.postgres.svc.cluster.local \
+  --set postgres.bootstrap.admin.password='ADMIN_PASSWORD' \
+  --set postgres.password='APP_PASSWORD' \
+  --set postgres.passwordRo='RO_PASSWORD' \
+  --set auth.pat='OURA_PAT'
+```
+
+Replace the passwords and PAT with your own. Set `postgres.host` to your Postgres service DNS name.
+
+### Option B — Existing Secrets
+
+Create Secrets first, then install:
+
+```bash
+kubectl -n monitoring create secret generic oura-db \
+  --from-literal=password='APP_PASSWORD' \
+  --from-literal=password-ro='RO_PASSWORD'
+
+kubectl -n monitoring create secret generic oura-api \
+  --from-literal=OURA_PAT='OURA_PAT'
+
+helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
+  --set postgres.host=postgres.postgres.svc.cluster.local \
   --set postgres.existingSecret=oura-db \
   --set auth.existingSecret=oura-api
 ```
 
-Chart index: https://kgrubb.github.io/oura-helm-chart/
+With this path, turn on extras explicitly when you want them:
 
-Published packages are signed. Verify with the [public key](https://kgrubb.github.io/oura-helm-chart/public.key) on gh-pages.
+```bash
+helm upgrade --install oura kgrubb-oura/oura -n monitoring \
+  --set postgres.existingSecret=oura-db \
+  --set auth.existingSecret=oura-api \
+  --set postgres.bootstrap.enabled=true \
+  --set postgres.bootstrap.admin.existingSecret=postgres-admin \
+  --set postgres.bootstrap.readOnlyUser=oura_ro \
+  --set dashboard.enabled=true \
+  --set dashboard.createDatasource=true \
+  --set dashboard.datasource.password='RO_PASSWORD'
+```
 
-## Prerequisites
+The admin Secret must contain the key named by `postgres.bootstrap.admin.passwordKey` (default `password`). When `readOnlyUser` is set, the DB Secret must also contain `postgres.bootstrap.readOnlyPasswordKey` (default `password-ro`). `dashboard.createDatasource` embeds the password into a Grafana provisioning Secret, so set `dashboard.datasource.password` when the chart does not create the DB Secret.
 
-1. PostgreSQL database and login role (not created by the chart).
-2. Secret with the database password (`postgres.existingSecret`).
-3. Oura credentials Secret:
-   - **Recommended:** personal access token (`auth.mode=pat`) from [Oura Cloud](https://cloud.ouraring.com/personal-access-tokens).
-   - **Alternative:** OAuth client id/secret plus token JSON on a PVC (`auth.mode=oauth`).
+### Values file
 
-## Symptom Radar
+You can also install from a file:
 
-After each sync the collector scores overnight biometrics into `symptom_radar_daily` (`none` / `minor` / `major`, shown as no signs / Minor Signs / Major signs).
+```bash
+helm install oura kgrubb-oura/oura -n monitoring --create-namespace -f my-values.yaml
+```
 
-## OAuth scopes
+## Uninstalling the Chart
 
-For workouts, resilience, and cardiovascular age, authorize with:
+```bash
+helm uninstall oura -n monitoring
+```
+
+Hook Jobs and Secrets created by the chart are removed with the release. If you used OAuth mode with a token PVC (`persistence` + `helm.sh/resource-policy: keep`), delete that PVC separately if you no longer need it.
+
+## Upgrading from 0.x
+
+Clear any reused `image.repository=ghcr.io/astral-sh/uv` or `image.tag=python3.12-alpine` values before upgrading. The chart fails validation until those overrides are removed.
+
+## Configuration
+
+See [charts/oura/values.yaml](charts/oura/values.yaml) for the full defaults. Common settings:
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `quickstart.enabled` | Create Secrets from values and enable bootstrap, dashboard, and datasource | `false` |
+| `schedule` | Cron expression for the collector | `*/15 * * * *` |
+| `timeZone` | CronJob time zone | `UTC` |
+| `image.repository` | Collector image | `ghcr.io/kgrubb/oura-collector` |
+| `image.tag` | Image tag (`""` uses `appVersion`) | `""` |
+| `postgres.host` | PostgreSQL hostname | `postgres` |
+| `postgres.database` | Database name | `oura` |
+| `postgres.user` | Application (read/write) role | `oura` |
+| `postgres.existingSecret` | Existing DB password Secret | `""` |
+| `postgres.password` / `passwordRo` | Inline passwords when not using `existingSecret` | `""` |
+| `postgres.bootstrap.enabled` | Create database and roles on install/upgrade | `false` |
+| `postgres.bootstrap.readOnlyUser` | Optional RO role (`oura_ro`). Quickstart defaults to `oura_ro` | `""` |
+| `auth.mode` | `pat` or `oauth` | `pat` |
+| `auth.existingSecret` | Existing Oura credentials Secret | `""` |
+| `auth.pat` | Inline PAT when not using `existingSecret` | `""` |
+| `dashboard.enabled` | Publish Grafana dashboard ConfigMap | `false` |
+| `dashboard.createDatasource` | Publish Grafana datasource Secret | `false` |
+| `dashboard.datasourceUid` | Grafana datasource UID referenced by the dashboard | `oura-postgres` |
+| `backfill.enabled` | One-shot Job for historical sync | `false` |
+| `backfill.startDate` | Earliest day to fetch when backfilling | `2015-01-01` |
+
+### Authentication
+
+**PAT (default):** store the token under key `OURA_PAT` (or set `auth.pat` / `auth.patKey`).
+
+**OAuth:** set `auth.mode=oauth` and provide a Secret with client id/secret keys. The chart mounts a PVC for the refresh token JSON. Authorize the Oura app with:
 
 ```text
 email personal daily heartrate spo2 workout stress heart_health
 ```
 
-Enable the same scopes on the Oura API application.
+### Historical backfill
 
-## Grafana dashboard
+After a normal install, run a one-shot backfill:
 
-Optional ConfigMap for the Grafana dashboard sidecar:
-
-```yaml
-dashboard:
-  enabled: true
-  datasourceUid: oura-postgres   # your Grafana Postgres datasource UID
+```bash
+helm upgrade oura kgrubb-oura/oura -n monitoring \
+  --reuse-values \
+  --set backfill.enabled=true \
+  --set backfill.startDate='2015-01-01'
 ```
 
-## Example
-
-```yaml
-postgres:
-  host: postgres-rw.postgres.svc.cluster.local
-  database: oura
-  user: oura
-  existingSecret: oura-db
-
-auth:
-  mode: pat
-  existingSecret: oura-api
-
-schedule: "*/15 * * * *"
-timeZone: America/New_York
-
-dashboard:
-  enabled: true
-  datasourceUid: oura-postgres
-
-backfill:
-  enabled: true
-  startDate: "2015-01-01"
-```
-
-## Releases
-
-Pushes to `main` that change `charts/` bump the chart version from conventional commits (`feat:` minor, breaking major, otherwise patch), publish with [chart-releaser](https://github.com/helm/chart-releaser-action), and host packages on `gh-pages`.
+Disable `backfill.enabled` again after the Job finishes if you do not want it recreated on the next upgrade.
 
 ## Development
 
 ```bash
-helm lint charts/oura --strict -f ci/values.yaml
-helm template test charts/oura -f ci/values.yaml
-python3 tests/test_symptom_radar.py
+uv sync --group dev
+uv run ruff check src tests && uv run ruff format src tests && uv run pytest
+./scripts/versions.sh check
+helm lint charts/oura --strict -f ci/values.yaml && helm unittest charts/oura
 ```

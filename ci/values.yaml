@@ -1,4 +1,4 @@
-# Values used by CI (helm lint / template). Not for production.
+# CI fixture: existing Secrets
 postgres:
   existingSecret: ci-oura-db
 auth:

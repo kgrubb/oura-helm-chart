@@ -1,0 +1,118 @@
+{{- if eq (include "oura.bootstrapEnabled" .) "true" }}
+{{- $adminSecret := include "oura.adminSecretName" . }}
+{{- $appSecret := include "oura.postgresSecretName" . }}
+{{- $roUser := include "oura.readOnlyUser" . }}
+{{- $roKey := include "oura.readOnlyPasswordKey" . }}
+{{- if and $roUser (not $roKey) }}
+{{- fail "postgres.bootstrap.readOnlyPasswordKey is required when a read-only user is enabled" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-db-bootstrap" (include "oura.fullname" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "oura.labels" . | nindent 4 }}
+    app.kubernetes.io/component: db-bootstrap
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-6"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+data:
+  db-bootstrap.sh: |
+{{ .Files.Get "files/db-bootstrap.sh" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-db-bootstrap" (include "oura.fullname" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "oura.labels" . | nindent 4 }}
+    app.kubernetes.io/component: db-bootstrap
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ttlSecondsAfterFinished: {{ .Values.postgres.bootstrap.ttlSecondsAfterFinished }}
+  backoffLimit: {{ .Values.backoffLimit }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "oura.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: db-bootstrap
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "oura.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- include "oura.jobScheduling" . | nindent 6 }}
+      containers:
+        - name: bootstrap
+          image: "{{ .Values.postgres.bootstrap.image.repository }}:{{ .Values.postgres.bootstrap.image.tag }}"
+          imagePullPolicy: {{ .Values.postgres.bootstrap.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: HOME
+              value: /tmp
+            - name: TMPDIR
+              value: /tmp
+            - name: PGHOST
+              value: {{ .Values.postgres.host | quote }}
+            - name: PGPORT
+              value: {{ .Values.postgres.port | quote }}
+            - name: PGSSLMODE
+              value: {{ .Values.postgres.bootstrap.sslMode | quote }}
+            - name: PGUSER
+              value: {{ .Values.postgres.bootstrap.admin.user | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $adminSecret }}
+                  key: {{ .Values.postgres.bootstrap.admin.passwordKey }}
+            - name: OURA_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: OURA_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: OURA_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $appSecret }}
+                  key: {{ .Values.postgres.passwordKey }}
+            {{- if $roUser }}
+            - name: OURA_RO_USER
+              value: {{ $roUser | quote }}
+            - name: OURA_DB_RO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $appSecret }}
+                  key: {{ $roKey }}
+            {{- end }}
+          command: ["/bin/sh", "/scripts/db-bootstrap.sh"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.postgres.bootstrap.resources | nindent 12 }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ printf "%s-db-bootstrap" (include "oura.fullname" .) | trunc 63 | trimSuffix "-" }}
+            defaultMode: 0555
+        - name: tmp
+          emptyDir: {}
+{{- end }}

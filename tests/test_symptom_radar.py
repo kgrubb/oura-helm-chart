@@ -1,24 +1,20 @@
-#!/usr/bin/env python3
 """Boundary tests for Symptom Radar scoring."""
+
 from __future__ import annotations
 
-import sys
-import unittest
 from datetime import date, timedelta
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "charts" / "oura" / "files"))
-from symptom_radar import Night, score_night  # noqa: E402
+from oura_collector.symptom_radar import Night, score_night
 
 
-def _hist(n: int = 20, base: date | None = None, **kw) -> list[Night]:
+def _hist(n: int = 20, base: date | None = None, **kw: float) -> list[Night]:
     end = (base or date.today()) - timedelta(days=4)
-    out = []
+    out: list[Night] = []
     for i in range(n):
-        d = end - timedelta(days=n - 1 - i)
+        day = end - timedelta(days=n - 1 - i)
         out.append(
             Night(
-                day=d,
+                day=day,
                 temp=kw.get("temp", 0.0),
                 trend=kw.get("trend", 0.0),
                 rhr=kw.get("rhr", 55.0),
@@ -35,44 +31,46 @@ def _fill_gate(hist: list[Night], day: date) -> None:
         hist.append(
             Night(
                 day=day - timedelta(days=10 - i),
-                temp=0.0, trend=0.0, rhr=55, hrv=50, rr=14, inactive=36000,
+                temp=0.0,
+                trend=0.0,
+                rhr=55,
+                hrv=50,
+                rr=14,
+                inactive=36000,
             )
         )
 
 
-class ScoreNightTest(unittest.TestCase):
-    def test_insufficient_data(self):
-        day = date(2026, 7, 20)
-        night = Night(day=day, temp=0.6, rhr=60, hrv=40, rr=15)
-        self.assertEqual(score_night(night, [])["level"], "insufficient_data")
-
-    def test_none_healthy(self):
-        day = date(2026, 7, 20)
-        hist = _hist(20, base=day)
-        _fill_gate(hist, day)
-        night = Night(day=day, temp=0.0, trend=0.0, rhr=55, hrv=50, rr=14, inactive=36000)
-        r = score_night(night, hist)
-        self.assertEqual(r["level"], "none")
-        self.assertEqual(r["summary_text"], "no signs")
-        self.assertEqual(r["algorithm_version"], "v3")
-
-    def test_jul22_style_is_minor(self):
-        day = date(2026, 7, 20)
-        hist = _hist(20, base=day)
-        _fill_gate(hist, day)
-        night = Night(day=day, temp=0.3, trend=0.11, rhr=60, hrv=45, rr=14, inactive=36000)
-        r = score_night(night, hist)
-        self.assertEqual(r["level"], "minor")
-
-    def test_temp_and_trend_major(self):
-        day = date(2026, 7, 20)
-        hist = _hist(20, base=day)
-        _fill_gate(hist, day)
-        night = Night(day=day, temp=0.45, trend=0.30, rhr=55, hrv=50, rr=14, inactive=36000)
-        r = score_night(night, hist)
-        self.assertEqual(r["level"], "major")
-        self.assertEqual(r["summary_text"], "Major signs")
+def test_insufficient_data() -> None:
+    day = date(2026, 7, 20)
+    night = Night(day=day, temp=0.6, rhr=60, hrv=40, rr=15)
+    assert score_night(night, [])["level"] == "insufficient_data"
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_none_healthy() -> None:
+    day = date(2026, 7, 20)
+    hist = _hist(20, base=day)
+    _fill_gate(hist, day)
+    night = Night(day=day, temp=0.0, trend=0.0, rhr=55, hrv=50, rr=14, inactive=36000)
+    result = score_night(night, hist)
+    assert result["level"] == "none"
+    assert result["summary_text"] == "no signs"
+    assert result["algorithm_version"] == "v3"
+
+
+def test_jul22_style_is_minor() -> None:
+    day = date(2026, 7, 20)
+    hist = _hist(20, base=day)
+    _fill_gate(hist, day)
+    night = Night(day=day, temp=0.3, trend=0.11, rhr=60, hrv=45, rr=14, inactive=36000)
+    assert score_night(night, hist)["level"] == "minor"
+
+
+def test_temp_and_trend_major() -> None:
+    day = date(2026, 7, 20)
+    hist = _hist(20, base=day)
+    _fill_gate(hist, day)
+    night = Night(day=day, temp=0.45, trend=0.30, rhr=55, hrv=50, rr=14, inactive=36000)
+    result = score_night(night, hist)
+    assert result["level"] == "major"
+    assert result["summary_text"] == "Major signs"

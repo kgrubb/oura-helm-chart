@@ -1,0 +1,99 @@
+suite: optional jobs and storage
+templates:
+  - backfill-job.yaml
+  - pvc.yaml
+  - serviceaccount.yaml
+tests:
+  - it: omits backfill Job by default
+    templates:
+      - backfill-job.yaml
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders backfill Job when enabled
+    templates:
+      - backfill-job.yaml
+    chart:
+      appVersion: 1.2.3
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      backfill.enabled: true
+      image.tag: ""
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/kgrubb/oura-collector:1.2.3
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BACKFILL
+            value: "1"
+
+  - it: omits token PVC for PAT auth
+    templates:
+      - pvc.yaml
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      auth.mode: pat
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: creates token PVC for OAuth
+    templates:
+      - pvc.yaml
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      auth.mode: oauth
+      persistence.enabled: true
+      persistence.storageClass: standard
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: PersistentVolumeClaim
+      - equal:
+          path: spec.storageClassName
+          value: standard
+
+  - it: creates ServiceAccount without automount
+    templates:
+      - serviceaccount.yaml
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+    asserts:
+      - isKind:
+          of: ServiceAccount
+      - equal:
+          path: automountServiceAccountToken
+          value: false
+      - isNull:
+          path: metadata.annotations["helm.sh/hook"]
+
+  - it: marks ServiceAccount as a pre-hook when bootstrap is enabled
+    templates:
+      - serviceaccount.yaml
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      postgres.bootstrap.enabled: true
+      postgres.bootstrap.admin.existingSecret: pg-admin
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install,pre-upgrade
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "-15"
