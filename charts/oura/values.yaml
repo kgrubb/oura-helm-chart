@@ -42,7 +42,7 @@ postgres:
       existingSecret: ""
       passwordKey: password
       password: ""  # used if admin.existingSecret is unset
-    readOnlyUser: ""  # e.g. oura_ro. Quickstart defaults to oura_ro. Requires that key in the DB Secret.
+    readOnlyUser: ""  # e.g. oura_ro. Quickstart defaults to oura_ro when the chart creates the DB Secret.
     readOnlyPasswordKey: password-ro
     sslMode: prefer
     ttlSecondsAfterFinished: 86400

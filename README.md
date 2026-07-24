@@ -114,7 +114,7 @@ helm install oura kgrubb-oura/oura -n monitoring --create-namespace -f my-values
 helm uninstall oura -n monitoring
 ```
 
-Hook Jobs and Secrets created by the chart are removed with the release. If you used OAuth mode with a token PVC (`persistence` + `helm.sh/resource-policy: keep`), delete that PVC separately if you no longer need it.
+Hook Jobs created by the chart are removed with the release. If you used OAuth mode with a token PVC (`persistence` + `helm.sh/resource-policy: keep`), delete that PVC separately if you no longer need it.
 
 ## Upgrading from 0.x
 
@@ -137,7 +137,7 @@ See [charts/oura/values.yaml](charts/oura/values.yaml) for the full defaults. Co
 | `postgres.existingSecret` | Existing DB password Secret | `""` |
 | `postgres.password` / `passwordRo` | Inline passwords when not using `existingSecret` | `""` |
 | `postgres.bootstrap.enabled` | Create database and roles on install/upgrade | `false` |
-| `postgres.bootstrap.readOnlyUser` | Optional RO role (`oura_ro`). Quickstart defaults to `oura_ro` | `""` |
+| `postgres.bootstrap.readOnlyUser` | Optional RO role (`oura_ro`). Quickstart defaults to `oura_ro` when the chart creates the DB Secret | `""` |
 | `auth.mode` | `pat` or `oauth` | `pat` |
 | `auth.existingSecret` | Existing Oura credentials Secret | `""` |
 | `auth.pat` | Inline PAT when not using `existingSecret` | `""` |

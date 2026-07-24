@@ -37,7 +37,7 @@ helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
 | `auth.mode` | `pat` or `oauth` | `pat` |
 | `auth.existingSecret` | Oura credentials Secret (or set `auth.pat`) | `""` |
 | `postgres.bootstrap.enabled` | Create database and roles | `false` |
-| `postgres.bootstrap.readOnlyUser` | Optional RO role. Quickstart defaults to `oura_ro` | `""` |
+| `postgres.bootstrap.readOnlyUser` | Optional RO role. Quickstart defaults to `oura_ro` when creating the DB Secret | `""` |
 | `dashboard.enabled` | Grafana dashboard ConfigMap | `false` |
 | `dashboard.createDatasource` | Grafana datasource Secret | `false` |
 | `backfill.enabled` | One-shot historical sync Job | `false` |

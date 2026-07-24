@@ -25,9 +25,8 @@ tests:
           count: 3
       - template: secrets.yaml
         documentIndex: 0
-        equal:
+        isNull:
           path: metadata.annotations["helm.sh/hook"]
-          value: pre-install,pre-upgrade
       - template: postgres-bootstrap-job.yaml
         documentIndex: 1
         equal:
@@ -37,6 +36,13 @@ tests:
         documentIndex: 1
         isKind:
           of: Job
+      - template: postgres-bootstrap-job.yaml
+        documentIndex: 1
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OURA_DB_PASSWORD
+            value: app
       - template: postgres-bootstrap-job.yaml
         documentIndex: 1
         contains:
@@ -83,3 +89,20 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: omits read-only bootstrap env when quickstart uses existing DB Secret
+    templates:
+      - postgres-bootstrap-job.yaml
+    set:
+      quickstart.enabled: true
+      postgres.existingSecret: oura-db
+      postgres.bootstrap.admin.password: admin
+      auth.existingSecret: oura-api
+      dashboard.datasource.password: unused
+    asserts:
+      - documentIndex: 1
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OURA_RO_USER
+            value: oura_ro

@@ -77,27 +77,39 @@ spec:
             - name: PGUSER
               value: {{ .Values.postgres.bootstrap.admin.user | quote }}
             - name: PGPASSWORD
+              {{- if eq (include "oura.createAdminSecret" .) "true" }}
+              value: {{ .Values.postgres.bootstrap.admin.password | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ $adminSecret }}
                   key: {{ .Values.postgres.bootstrap.admin.passwordKey }}
+              {{- end }}
             - name: OURA_DB
               value: {{ .Values.postgres.database | quote }}
             - name: OURA_USER
               value: {{ .Values.postgres.user | quote }}
             - name: OURA_DB_PASSWORD
+              {{- if eq (include "oura.createPostgresSecret" .) "true" }}
+              value: {{ .Values.postgres.password | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ $appSecret }}
                   key: {{ .Values.postgres.passwordKey }}
+              {{- end }}
             {{- if $roUser }}
             - name: OURA_RO_USER
               value: {{ $roUser | quote }}
             - name: OURA_DB_RO_PASSWORD
+              {{- if eq (include "oura.createPostgresSecret" .) "true" }}
+              value: {{ .Values.postgres.passwordRo | quote }}
+              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ $appSecret }}
                   key: {{ $roKey }}
+              {{- end }}
             {{- end }}
           command: ["/bin/sh", "/scripts/db-bootstrap.sh"]
           volumeMounts:

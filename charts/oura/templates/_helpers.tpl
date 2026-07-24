@@ -97,14 +97,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 
 {{/*
 Read-only role for bootstrap / Grafana. Explicit values win.
-Quickstart defaults to oura_ro so chart-created Secrets get password-ro
-without forcing that key on existingSecret installs.
+Quickstart defaults to oura_ro only when the chart creates the DB Secret,
+so existingSecret installs are not forced to provide password-ro.
 */}}
 {{- define "oura.readOnlyUser" -}}
 {{- $u := .Values.postgres.bootstrap.readOnlyUser | default "" -}}
 {{- if $u -}}
 {{- $u -}}
-{{- else if .Values.quickstart.enabled -}}
+{{- else if and .Values.quickstart.enabled (eq (include "oura.createPostgresSecret" .) "true") -}}
 oura_ro
 {{- end -}}
 {{- end -}}
