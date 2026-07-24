@@ -4,6 +4,13 @@ All notable changes to this chart are documented here.
 
 ## [Unreleased]
 
+## [0.2.10] - 2026-07-24
+
+### Fixed
+- default collector schedule to every 15 minutes
+
+
+
 ## [0.2.9] - 2026-07-23
 
 ### Fixed
