@@ -1,0 +1,13 @@
+# CI fixture: quickstart (credentials supplied as values)
+quickstart:
+  enabled: true
+postgres:
+  host: postgres
+  password: app-password
+  passwordRo: ro-password
+  bootstrap:
+    admin:
+      password: admin-password
+auth:
+  mode: pat
+  pat: test-oura-pat

@@ -1,0 +1,36 @@
+suite: collector cronjob
+templates:
+  - cronjob.yaml
+tests:
+  - it: uses AppVersion as image tag when image.tag is empty
+    chart:
+      appVersion: 1.2.3
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      image.tag: ""
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].image
+          value: ghcr.io/kgrubb/oura-collector:1.2.3
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.automountServiceAccountToken
+          value: false
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: honors image.tag override
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      image.tag: "9.9.9"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].image
+          value: ghcr.io/kgrubb/oura-collector:9.9.9

@@ -1,4 +1,4 @@
-{{- if .Values.dashboard.enabled }}
+{{- if eq (include "oura.dashboardEnabled" .) "true" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,6 +9,10 @@ metadata:
     {{- range $k, $v := .Values.dashboard.labels }}
     {{ $k }}: {{ $v | quote }}
     {{- end }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 data:
   oura.json: |
 {{ .Files.Get "files/dashboard-oura.json" | replace "__OURA_DS__" .Values.dashboard.datasourceUid | indent 4 }}

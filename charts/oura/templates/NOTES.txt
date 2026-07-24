@@ -1,17 +1,12 @@
-1. Provision PostgreSQL database/role outside this chart.
-2. Create Secret {{ .Values.postgres.existingSecret | default "<postgres.existingSecret>" }}
-   with key {{ .Values.postgres.passwordKey }}.
-3. Create Secret {{ .Values.auth.existingSecret | default "<auth.existingSecret>" }}
-{{- if eq .Values.auth.mode "pat" }}
-   with key {{ .Values.auth.patKey }} (https://cloud.ouraring.com/personal-access-tokens).
-{{- else }}
-   with OAuth client credentials, and place oauth_token.json on PVC
-   {{ include "oura.tokenPvcName" . }} before the first run.
+CronJob {{ include "oura.fullname" . }} runs {{ .Values.schedule }} ({{ .Values.timeZone }}).
+Postgres Secret: {{ include "oura.postgresSecretName" . }}
+Auth Secret: {{ include "oura.authSecretName" . }}
+{{- if eq (include "oura.bootstrapEnabled" .) "true" }}
+Admin Secret: {{ include "oura.adminSecretName" . }} (bootstrap hook)
 {{- end }}
-4. Point Grafana (or any SQL client) at the database with a read-only role.
-
-CronJob {{ include "oura.fullname" . }} runs {{ .Values.schedule }} ({{ .Values.timeZone }})
-{{- if .Values.backfill.enabled }}
-
-Backfill Job is enabled. Delete it after completion, or set backfill.enabled=false.
+{{- if eq (include "oura.dashboardEnabled" .) "true" }}
+Dashboard datasource UID: {{ .Values.dashboard.datasourceUid }}
+{{- end }}
+{{- if eq .Values.auth.mode "oauth" }}
+OAuth token PVC: {{ include "oura.tokenPvcName" . }}
 {{- end }}

@@ -1,0 +1,87 @@
+suite: postgres bootstrap
+templates:
+  - postgres-bootstrap-job.yaml
+tests:
+  - it: omits bootstrap resources by default
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders hook Job and ConfigMap when enabled
+    set:
+      postgres.existingSecret: oura-db
+      postgres.bootstrap.enabled: true
+      postgres.bootstrap.admin.existingSecret: postgres-admin
+      auth.existingSecret: api
+    asserts:
+      - hasDocuments:
+          count: 2
+      - documentIndex: 0
+        isKind:
+          of: ConfigMap
+      - documentIndex: 1
+        isKind:
+          of: Job
+      - documentIndex: 1
+        equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install,pre-upgrade
+      - documentIndex: 1
+        equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: /bin/sh
+      - documentIndex: 1
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OURA_RO_USER
+            value: oura_ro
+      - documentIndex: 1
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGSSLMODE
+            value: prefer
+
+  - it: mounts read-only env when readOnlyUser is set with existing Secret
+    set:
+      postgres.existingSecret: oura-db
+      postgres.bootstrap.enabled: true
+      postgres.bootstrap.admin.existingSecret: postgres-admin
+      postgres.bootstrap.readOnlyUser: oura_ro
+      auth.existingSecret: api
+    asserts:
+      - documentIndex: 1
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OURA_RO_USER
+            value: oura_ro
+      - documentIndex: 1
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OURA_DB_RO_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: oura-db
+                key: password-ro
+
+  - it: omits read-only env when readOnlyUser is empty
+    set:
+      postgres.existingSecret: oura-db
+      postgres.bootstrap.enabled: true
+      postgres.bootstrap.admin.existingSecret: postgres-admin
+      postgres.bootstrap.readOnlyUser: ""
+      postgres.bootstrap.readOnlyPasswordKey: ""
+      auth.existingSecret: api
+    asserts:
+      - documentIndex: 1
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OURA_RO_USER
+            value: oura_ro

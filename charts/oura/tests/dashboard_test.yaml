@@ -1,0 +1,60 @@
+suite: dashboard
+templates:
+  - dashboard-configmap.yaml
+  - dashboard-datasource-secret.yaml
+tests:
+  - it: omits dashboard resources by default
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders dashboard ConfigMap when enabled
+    templates:
+      - dashboard-configmap.yaml
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      dashboard.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.labels.grafana_dashboard
+          value: "1"
+      - isNotEmpty:
+          path: data["oura.json"]
+
+  - it: renders datasource Secret when createDatasource is set
+    templates:
+      - dashboard-datasource-secret.yaml
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      dashboard.enabled: true
+      dashboard.createDatasource: true
+      dashboard.datasource.password: secret
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Secret
+      - equal:
+          path: metadata.labels.grafana_datasource
+          value: "1"
+
+  - it: fails createDatasource with existing DB Secret and no datasource password
+    templates:
+      - dashboard-datasource-secret.yaml
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      dashboard.enabled: true
+      dashboard.createDatasource: true
+    asserts:
+      - failedTemplate:
+          errorPattern: dashboard.createDatasource requires dashboard.datasource.password

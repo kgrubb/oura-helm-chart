@@ -1,0 +1,108 @@
+suite: quickstart
+templates:
+  - secrets.yaml
+  - serviceaccount.yaml
+  - postgres-bootstrap-job.yaml
+  - dashboard-configmap.yaml
+  - dashboard-datasource-secret.yaml
+  - cronjob.yaml
+tests:
+  - it: creates secrets, bootstrap, dashboard, and datasource
+    set:
+      quickstart.enabled: true
+      postgres.host: postgres.example
+      postgres.password: app
+      postgres.passwordRo: ro
+      postgres.bootstrap.admin.password: admin
+      auth.pat: pat-value
+    asserts:
+      - template: serviceaccount.yaml
+        equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install,pre-upgrade
+      - template: secrets.yaml
+        hasDocuments:
+          count: 3
+      - template: secrets.yaml
+        documentIndex: 0
+        isNull:
+          path: metadata.annotations["helm.sh/hook"]
+      - template: postgres-bootstrap-job.yaml
+        documentIndex: 1
+        equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install,pre-upgrade
+      - template: postgres-bootstrap-job.yaml
+        documentIndex: 1
+        isKind:
+          of: Job
+      - template: postgres-bootstrap-job.yaml
+        documentIndex: 1
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OURA_DB_PASSWORD
+            value: app
+      - template: postgres-bootstrap-job.yaml
+        documentIndex: 1
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OURA_RO_USER
+            value: oura_ro
+      - template: secrets.yaml
+        documentIndex: 0
+        equal:
+          path: stringData["password-ro"]
+          value: "ro"
+      - template: dashboard-configmap.yaml
+        isKind:
+          of: ConfigMap
+      - template: dashboard-datasource-secret.yaml
+        isKind:
+          of: Secret
+      - template: cronjob.yaml
+        contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content:
+            name: PGPASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-oura-db
+                key: password
+      - template: cronjob.yaml
+        contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content:
+            name: OURA_PAT
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-oura-auth
+                key: OURA_PAT
+
+  - it: does not create Secrets when existingSecret is set
+    templates:
+      - secrets.yaml
+    set:
+      postgres.existingSecret: oura-db
+      auth.existingSecret: oura-api
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: omits read-only bootstrap env when quickstart uses existing DB Secret
+    templates:
+      - postgres-bootstrap-job.yaml
+    set:
+      quickstart.enabled: true
+      postgres.existingSecret: oura-db
+      postgres.bootstrap.admin.password: admin
+      auth.existingSecret: oura-api
+      dashboard.datasource.password: unused
+    asserts:
+      - documentIndex: 1
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OURA_RO_USER
+            value: oura_ro
