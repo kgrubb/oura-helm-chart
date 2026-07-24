@@ -4,7 +4,7 @@ image:
   tag: python3.12-alpine
   pullPolicy: IfNotPresent
 
-schedule: "0 */6 * * *"
+schedule: "*/15 * * * *"
 timeZone: UTC
 concurrencyPolicy: Forbid
 successfulJobsHistoryLimit: 2

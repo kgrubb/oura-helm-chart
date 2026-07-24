@@ -7,7 +7,7 @@ CronJob that loads Oura Ring API v2 into PostgreSQL (daily metrics, sleep period
 | Key | Default | Notes |
 | --- | --- | --- |
 | `image.repository` | `ghcr.io/astral-sh/uv` | Runtime image (`python3.12-alpine` tag) |
-| `schedule` | `0 */6 * * *` | Cron expression |
+| `schedule` | `*/15 * * * *` | Cron expression |
 | `timeZone` | `UTC` | CronJob `timeZone` |
 | `recentDays` | `14` | Trailing days re-fetched every run |
 | `postgres.host` | `postgres` | PostgreSQL hostname |

@@ -64,7 +64,7 @@ auth:
   mode: pat
   existingSecret: oura-api
 
-schedule: "0 */6 * * *"
+schedule: "*/15 * * * *"
 timeZone: America/New_York
 
 dashboard:
