@@ -4,6 +4,13 @@ All notable changes to this chart are documented here.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-25
+
+### Changed
+- ship versioned collector image and quickstart bootstrap for 1.0 ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+
+
+
 ## [0.2.10] - 2026-07-24
 
 ### Fixed

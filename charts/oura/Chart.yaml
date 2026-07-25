@@ -2,8 +2,8 @@ apiVersion: v2
 name: oura
 description: Sync Oura Ring API v2 data into PostgreSQL
 type: application
-version: 0.2.10
-appVersion: "0.2.10"
+version: 1.0.0
+appVersion: "1.0.0"
 home: https://github.com/kgrubb/oura-helm-chart
 icon: https://kgrubb.github.io/oura-helm-chart/logo.svg
 sources:
@@ -24,7 +24,7 @@ annotations:
   artifacthub.io/license: Apache-2.0
   artifacthub.io/images: |
     - name: oura-collector
-      image: ghcr.io/kgrubb/oura-collector:0.2.10
+      image: ghcr.io/kgrubb/oura-collector:1.0.0
   artifacthub.io/links: |
     - name: source
       url: https://github.com/kgrubb/oura-helm-chart
