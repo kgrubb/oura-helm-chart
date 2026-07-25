@@ -64,7 +64,8 @@ jobs:
             echo "First chart publish"
           else
             git diff --name-only "$last_tag" "$AFTER" -- "${release_paths[@]}" | grep -q . || exit 0
-            ./scripts/bump-chart-version.sh "$BEFORE" "$AFTER"
+            # Bump from the last chart tag so a recovery push still sees the feat!/BREAKING CHANGE.
+            ./scripts/bump-chart-version.sh "$last_tag" "$AFTER"
           fi
 
           version=$(awk '/^version:/ { print $2; exit }' charts/oura/Chart.yaml)
@@ -131,6 +132,8 @@ jobs:
         run: |
           set -euo pipefail
           # New packages default to private. Chart consumers need anonymous pulls.
+          # GITHUB_TOKEN often cannot change visibility (API 404). Prefer UI:
+          #   https://github.com/users/${{ github.repository_owner }}/packages/container/oura-collector/settings
           owner="${{ github.repository_owner }}"
           name="${IMAGE_NAME}"
           set_public() {
@@ -140,20 +143,23 @@ jobs:
               "${path}" \
               -f visibility=public
           }
-          if ! set_public "/user/packages/container/${name}/visibility"; then
-            set_public "/orgs/${owner}/packages/container/${name}/visibility"
-          fi
+          set +e
+          set_public "/user/packages/container/${name}/visibility" \
+            || set_public "/orgs/${owner}/packages/container/${name}/visibility"
+          set -e
           visibility=""
           if visibility=$(gh api -H "Accept: application/vnd.github+json" \
               "/user/packages/container/${name}" --jq .visibility 2>/dev/null); then
             :
+          elif visibility=$(gh api -H "Accept: application/vnd.github+json" \
+              "/orgs/${owner}/packages/container/${name}" --jq .visibility 2>/dev/null); then
+            :
           else
-            visibility=$(gh api -H "Accept: application/vnd.github+json" \
-              "/orgs/${owner}/packages/container/${name}" --jq .visibility)
+            visibility="unknown"
           fi
           if [[ "${visibility}" != "public" ]]; then
             echo "collector package visibility is '${visibility}', expected public" >&2
-            echo "make ghcr.io/${owner}/${name} public, then re-run release" >&2
+            echo "make ghcr.io/${owner}/${name} public in the package settings UI, then re-run this workflow" >&2
             exit 1
           fi
           echo "collector package is public"
