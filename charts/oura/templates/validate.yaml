@@ -1,0 +1,21 @@
+{{- if or (eq .Values.image.repository "ghcr.io/astral-sh/uv") (eq .Values.image.tag "python3.12-alpine") }}
+{{- fail "remove the old uv image override (set image.repository=ghcr.io/kgrubb/oura-collector and image.tag=\"\")" }}
+{{- end }}
+{{- if and .Values.quickstart.enabled (ne .Values.auth.mode "pat") }}
+{{- fail "quickstart.enabled requires auth.mode=pat" }}
+{{- end }}
+{{- if and (empty .Values.postgres.existingSecret) (empty (.Values.postgres.password | default "")) }}
+{{- fail "set postgres.existingSecret or postgres.password" }}
+{{- end }}
+{{- if and (eq .Values.auth.mode "pat") (empty .Values.auth.existingSecret) (empty (.Values.auth.pat | default "")) }}
+{{- fail "set auth.existingSecret or auth.pat" }}
+{{- end }}
+{{- if and (ne .Values.auth.mode "pat") (empty .Values.auth.existingSecret) }}
+{{- fail "auth.existingSecret is required when auth.mode=oauth" }}
+{{- end }}
+{{- if and (eq (include "oura.bootstrapEnabled" .) "true") (empty .Values.postgres.bootstrap.admin.existingSecret) (empty (.Values.postgres.bootstrap.admin.password | default "")) }}
+{{- fail "set postgres.bootstrap.admin.existingSecret or postgres.bootstrap.admin.password when bootstrap is enabled" }}
+{{- end }}
+{{- if and (eq (include "oura.createPostgresSecret" .) "true") (include "oura.readOnlyUser" .) (empty (.Values.postgres.passwordRo | default "")) }}
+{{- fail "postgres.passwordRo is required when the chart creates the DB Secret and a read-only role is enabled" }}
+{{- end }}

@@ -3,6 +3,7 @@
 Calibrated against labeled nights. Uses temp, temp trend, RHR, HRV, RR,
 and previous-day sedentary time.
 """
+
 from __future__ import annotations
 
 import statistics
@@ -88,18 +89,24 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
         if points <= 0 or value is None:
             return
         z = _z(value, base_vals) if len(base_vals) >= 2 else None
-        contrib.append({
-            "signal": signal,
-            "value": value,
-            "baseline": _median(base_vals) if base_vals else None,
-            "z": round(z, 3) if z is not None else None,
-            "points": points,
-        })
+        contrib.append(
+            {
+                "signal": signal,
+                "value": value,
+                "baseline": _median(base_vals) if base_vals else None,
+                "z": round(z, 3) if z is not None else None,
+                "points": points,
+            }
+        )
         score += points
 
     temp_b, trend_b, rhr_b, hrv_b, rr_b, ina_b = (
-        series("temp"), series("trend"), series("rhr"),
-        series("hrv"), series("rr"), series("inactive"),
+        series("temp"),
+        series("trend"),
+        series("rhr"),
+        series("hrv"),
+        series("rr"),
+        series("inactive"),
     )
 
     # Skin temperature deviation (°C)

@@ -3,12 +3,12 @@ name: oura
 description: Sync Oura Ring API v2 data into PostgreSQL
 type: application
 version: 0.2.10
-appVersion: "0.1.0"
-home: https://cloud.ouraring.com/v2/docs
+appVersion: "0.2.10"
+home: https://github.com/kgrubb/oura-helm-chart
 icon: https://kgrubb.github.io/oura-helm-chart/logo.svg
 sources:
-  - https://cloud.ouraring.com/v2/docs
   - https://github.com/kgrubb/oura-helm-chart
+  - https://cloud.ouraring.com/v2/docs
 maintainers:
   - name: kgrubb
     email: 8471701+kgrubb@users.noreply.github.com
@@ -21,14 +21,15 @@ keywords:
   - cronjob
 annotations:
   artifacthub.io/category: integration-delivery
-  artifacthub.io/containsSecurityUpdates: "false"
   artifacthub.io/license: Apache-2.0
+  artifacthub.io/images: |
+    - name: oura-collector
+      image: ghcr.io/kgrubb/oura-collector:0.2.10
   artifacthub.io/links: |
-    - name: support
-      url: https://github.com/kgrubb/oura-helm-chart/issues
     - name: source
       url: https://github.com/kgrubb/oura-helm-chart
-  artifacthub.io/prerelease: "false"
+    - name: support
+      url: https://github.com/kgrubb/oura-helm-chart/issues
   artifacthub.io/signKey: |
     fingerprint: 9D14AFA7672D09B60F1116886551521D24B1ECB3
     url: https://kgrubb.github.io/oura-helm-chart/public.key

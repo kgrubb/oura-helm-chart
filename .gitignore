@@ -3,9 +3,16 @@
 charts/oura/RELEASE-NOTES.md
 
 # Python
+.venv/
 __pycache__/
 *.py[cod]
 .ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local render output
+rendered/
 
 # OS / editor
 .DS_Store
