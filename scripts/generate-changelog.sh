@@ -18,6 +18,7 @@ grep -q "^## \\[${VERSION}\\]" "$CHANGELOG" && exit 0
 added=()
 fixed=()
 changed=()
+removed=()
 
 section_for() {
   case "$1" in
@@ -46,39 +47,54 @@ append() {
     added) added+=("$line") ;;
     fixed) fixed+=("$line") ;;
     changed) changed+=("$line") ;;
+    removed) removed+=("$line") ;;
   esac
 }
 
 summary_bullets() {
+  # Prefer Keep a Changelog sections from the PR body. Fall back to ## Summary.
   gh pr view "$1" --repo "$REPO" --json body -q .body | awk '
-    /^## Summary/ { found=1; next }
-    /^## / { if (found) exit }
-    found && /^- / { sub(/^- /, ""); print }
+    BEGIN { mode="" }
+    /^## Added$/ { mode="added"; next }
+    /^## Changed$/ { mode="changed"; next }
+    /^## Fixed$/ { mode="fixed"; next }
+    /^## Removed$/ { mode="removed"; next }
+    /^## Deprecated$/ { mode="changed"; next }
+    /^## Security$/ { mode="fixed"; next }
+    /^## Migration$/ { mode="changed"; next }
+    /^## Summary$/ { mode="summary"; next }
+    /^## / { mode=""; next }
+    mode != "" && /^- / {
+      sub(/^- /, "")
+      print mode "\t" $0
+    }
   '
 }
 
 while read -r num; do
   [[ -z "$num" ]] && continue
   title=$(gh pr view "$num" --repo "$REPO" --json title -q .title)
-  section=$(section_for "$title")
-  [[ -n "$section" ]] || continue
-
+  default_section=$(section_for "$title")
   url="https://github.com/${REPO}/pull/${num}"
-  mapfile -t bullets < <(summary_bullets "$num")
-  ((${#bullets[@]})) || bullets=("${title#*: }")
 
-  if ((${#bullets[@]} == 1)); then
-    append "$section" "- ${bullets[0]} ([#${num}](${url}))"
-  else
-    append "$section" "- ${title#*: } ([#${num}](${url}))"
-    for line in "${bullets[@]}"; do
-      append "$section" "  - ${line}"
+  mapfile -t rows < <(summary_bullets "$num")
+  if ((${#rows[@]})); then
+    for row in "${rows[@]}"; do
+      section=${row%%$'\t'*}
+      text=${row#*$'\t'}
+      [[ "$section" == "summary" ]] && section=${default_section:-changed}
+      [[ -n "$section" ]] || section=changed
+      append "$section" "- ${text} ([#${num}](${url}))"
     done
+    continue
   fi
+
+  [[ -n "$default_section" ]] || default_section=changed
+  append "$default_section" "- ${title#*: } ([#${num}](${url}))"
 done < <(pr_numbers_since)
 
 # Direct-to-main: use conventional commit subjects when no PRs contributed entries.
-if [[ ${#added[@]} -eq 0 && ${#fixed[@]} -eq 0 && ${#changed[@]} -eq 0 ]]; then
+if [[ ${#added[@]} -eq 0 && ${#fixed[@]} -eq 0 && ${#changed[@]} -eq 0 && ${#removed[@]} -eq 0 ]]; then
   while IFS= read -r subject; do
     [[ -z "$subject" || "$subject" =~ ^chore\(release\): ]] && continue
     section=$(section_for "$subject")
@@ -90,7 +106,7 @@ if [[ ${#added[@]} -eq 0 && ${#fixed[@]} -eq 0 && ${#changed[@]} -eq 0 ]]; then
   done < <(git log "${SINCE}..${UNTIL}" --pretty=format:'%s')
 fi
 
-if [[ ${#added[@]} -eq 0 && ${#fixed[@]} -eq 0 && ${#changed[@]} -eq 0 ]]; then
+if [[ ${#added[@]} -eq 0 && ${#fixed[@]} -eq 0 && ${#changed[@]} -eq 0 && ${#removed[@]} -eq 0 ]]; then
   changed=("- Chart update")
 fi
 
@@ -99,6 +115,7 @@ fi
   [[ ${#added[@]} -gt 0 ]] && { printf '### Added\n'; printf '%s\n' "${added[@]}"; echo; }
   [[ ${#changed[@]} -gt 0 ]] && { printf '### Changed\n'; printf '%s\n' "${changed[@]}"; echo; }
   [[ ${#fixed[@]} -gt 0 ]] && { printf '### Fixed\n'; printf '%s\n' "${fixed[@]}"; echo; }
+  [[ ${#removed[@]} -gt 0 ]] && { printf '### Removed\n'; printf '%s\n' "${removed[@]}"; echo; }
 } > "$NOTES"
 
 line=$(grep -n '^## \[Unreleased\]' "$CHANGELOG" | cut -d: -f1)

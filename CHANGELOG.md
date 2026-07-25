@@ -6,8 +6,34 @@ All notable changes to this chart are documented here.
 
 ## [1.0.0] - 2026-07-25
 
+### Added
+- Versioned collector image (`ghcr.io/kgrubb/oura-collector`) built and published in release CI ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Optional quickstart that creates Secrets, bootstraps Postgres roles, and enables the Grafana dashboard and datasource ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Optional Postgres bootstrap hook Job ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Helm unit tests and Python packaging (`uv`, ruff, pytest) ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+
 ### Changed
-- ship versioned collector image and quickstart bootstrap for 1.0 ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Collector runs from the container image instead of ConfigMap Python on the `uv` image ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Chart defaults, helpers, and docs for Secret-based and quickstart installs ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Release and CI pipelines target Helm 4 ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Release pipeline keeps chart version, appVersion, image tag, and pyproject version aligned ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Release makes the GHCR collector package public after push and verifies visibility before chart publish ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Postgres bootstrap runs as a `pre-install` / `pre-upgrade` hook so DB roles exist before CronJob or backfill Jobs start ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Read-only Postgres role is opt-in (`postgres.bootstrap.readOnlyUser`). Quickstart defaults to `oura_ro` only when the chart creates the DB Secret ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Bootstrap does not rotate passwords on existing roles (avoids Secret / DB desync during upgrades) ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Set `image.repository=ghcr.io/kgrubb/oura-collector` and `image.tag=` (empty) when upgrading from 0.x with reused values ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Existing Secret and OAuth installs keep working. Leave `quickstart.enabled` and `dashboard.createDatasource` off if you already manage those ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+
+### Fixed
+- Schema grants to `oura_ro` only when that role exists, so collector startup no longer races bootstrap ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Validation rejects reused pre-1.0 `uv` / `python3.12-alpine` image overrides on upgrade ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Bootstrap Job takes chart-managed credentials from values so DB Secrets stay regular resources ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Bootstrap with an existing DB Secret no longer requires a `password-ro` key unless `readOnlyUser` is set ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- `dashboard.createDatasource` no longer uses Helm `lookup`, so GitOps / `helm template` works. Set `dashboard.datasource.password` when using `postgres.existingSecret` ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+- Bootstrap Job does not depend on the chart ServiceAccount, so enabling bootstrap later cannot break SA ownership ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
+
+### Removed
+- ConfigMap-shipped `collector.py` / `symptom_radar.py` runtime ([#1](https://github.com/kgrubb/oura-helm-chart/pull/1))
 
 
 
