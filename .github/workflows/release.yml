@@ -9,13 +9,18 @@ on:
 permissions:
   contents: write
   pages: write
+  packages: write
   pull-requests: read
+
+env:
+  IMAGE_NAME: oura-collector
+  REGISTRY: ghcr.io
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -23,6 +28,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
 
       - name: Detect release
         id: bump
@@ -41,29 +51,35 @@ jobs:
               BEFORE="$last_tag"
             fi
           elif [[ "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
-            # Ignore re-push of already-tagged history. Allow brand-new repos.
             [[ -n "$last_tag" ]] && exit 0
             first_release=true
           fi
 
           [[ "$MSG" =~ ^chore\(release\): ]] && exit 0
 
-          chmod +x scripts/{bump-chart-version,generate-changelog,sync-gh-pages}.sh
+          chmod +x scripts/*.sh
 
+          release_paths=(charts/ src/ Dockerfile pyproject.toml uv.lock)
           if [[ "$first_release" == "true" ]] || [[ -z "$last_tag" ]]; then
-            # Publish Chart.yaml version as-is for the first packaged release.
-            echo "First chart publish, keeping $(awk '/^version:/ { print $2 }' charts/oura/Chart.yaml)"
+            echo "First chart publish"
           else
-            git diff --name-only "$last_tag" "$AFTER" -- charts/ | grep -q . || exit 0
+            git diff --name-only "$last_tag" "$AFTER" -- "${release_paths[@]}" | grep -q . || exit 0
             ./scripts/bump-chart-version.sh "$BEFORE" "$AFTER"
           fi
 
-          echo "charts_changed=true" >> "$GITHUB_OUTPUT"
-          echo "since_ref=${last_tag:-$AFTER}" >> "$GITHUB_OUTPUT"
-          echo "version=$(awk '/^version:/ { print $2 }' charts/oura/Chart.yaml)" >> "$GITHUB_OUTPUT"
+          version=$(awk '/^version:/ { print $2; exit }' charts/oura/Chart.yaml)
+          ./scripts/versions.sh set "$version"
+
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          {
+            echo "release=true"
+            echo "since_ref=${last_tag:-$AFTER}"
+            echo "version=${version}"
+            echo "image=${REGISTRY}/${owner}/${IMAGE_NAME}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog
-        if: steps.bump.outputs.charts_changed == 'true'
+        if: steps.bump.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -72,12 +88,84 @@ jobs:
             "${{ github.sha }}" \
             "${{ steps.bump.outputs.version }}"
 
+      - name: Set up Docker Buildx
+        if: steps.bump.outputs.release == 'true'
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: steps.bump.outputs.release == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        if: steps.bump.outputs.release == 'true'
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ steps.bump.outputs.image }}
+          tags: |
+            type=raw,value=${{ steps.bump.outputs.version }}
+            type=raw,value=latest
+
+      - name: Build and push collector image
+        if: steps.bump.outputs.release == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.bump.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Make collector package public
+        if: steps.bump.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # New packages default to private. Chart consumers need anonymous pulls.
+          owner="${{ github.repository_owner }}"
+          name="${IMAGE_NAME}"
+          set_public() {
+            local path="$1"
+            gh api --method PUT \
+              -H "Accept: application/vnd.github+json" \
+              "${path}" \
+              -f visibility=public
+          }
+          if ! set_public "/user/packages/container/${name}/visibility"; then
+            set_public "/orgs/${owner}/packages/container/${name}/visibility"
+          fi
+          visibility=""
+          if visibility=$(gh api -H "Accept: application/vnd.github+json" \
+              "/user/packages/container/${name}" --jq .visibility 2>/dev/null); then
+            :
+          else
+            visibility=$(gh api -H "Accept: application/vnd.github+json" \
+              "/orgs/${owner}/packages/container/${name}" --jq .visibility)
+          fi
+          if [[ "${visibility}" != "public" ]]; then
+            echo "collector package visibility is '${visibility}', expected public" >&2
+            echo "make ghcr.io/${owner}/${name} public, then re-run release" >&2
+            exit 1
+          fi
+          echo "collector package is public"
+
       - uses: azure/setup-helm@v5
-        if: steps.bump.outputs.charts_changed == 'true'
+        if: steps.bump.outputs.release == 'true'
+        with:
+          version: v4.2.3
 
       - name: Import GPG key
         id: gpg
-        if: steps.bump.outputs.charts_changed == 'true'
+        if: steps.bump.outputs.release == 'true'
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
@@ -103,7 +191,7 @@ jobs:
           echo "signed=true" >> "$GITHUB_OUTPUT"
 
       - name: Ensure gh-pages branch
-        if: steps.bump.outputs.charts_changed == 'true'
+        if: steps.bump.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -122,8 +210,12 @@ jobs:
           git -C "$work" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git -C "$work" push -u origin gh-pages
 
+      - name: Verify versions
+        if: steps.bump.outputs.release == 'true'
+        run: ./scripts/versions.sh check
+
       - name: Publish charts
-        if: steps.bump.outputs.charts_changed == 'true'
+        if: steps.bump.outputs.release == 'true'
         uses: helm/chart-releaser-action@v1.7.0
         with:
           charts_dir: charts
@@ -138,18 +230,16 @@ jobs:
           CR_PASSPHRASE_FILE: ${{ env.CR_PASSPHRASE_FILE }}
 
       - name: Sync gh-pages assets
-        if: steps.bump.outputs.charts_changed == 'true'
+        if: steps.bump.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: ./scripts/sync-gh-pages.sh static
 
       - name: Commit release artifacts
-        if: steps.bump.outputs.charts_changed == 'true'
+        if: steps.bump.outputs.release == 'true'
         run: |
-          git add CHANGELOG.md
-          git diff --quiet charts/oura/Chart.yaml || git add charts/oura/Chart.yaml
+          git add CHANGELOG.md charts/oura/Chart.yaml pyproject.toml uv.lock
           git diff --staged --quiet && exit 0
-          VERSION=$(awk '/^version:/ { print $2 }' charts/oura/Chart.yaml)
-          git commit -m "chore(release): bump chart to ${VERSION}"
+          git commit -m "chore(release): bump chart to ${{ steps.bump.outputs.version }}"
           git push

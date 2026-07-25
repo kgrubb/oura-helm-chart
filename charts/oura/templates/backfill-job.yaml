@@ -6,19 +6,26 @@ metadata:
   labels:
     {{- include "oura.labels" . | nindent 4 }}
     app.kubernetes.io/component: backfill
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   ttlSecondsAfterFinished: {{ .Values.backfill.ttlSecondsAfterFinished }}
   backoffLimit: {{ .Values.backoffLimit }}
   activeDeadlineSeconds: {{ .Values.backfill.activeDeadlineSeconds }}
   template:
     metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         {{- include "oura.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: backfill
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
-      restartPolicy: Never
-      containers:
-        {{- include "oura.container" (dict "root" . "name" "backfill" "backfill" true) | nindent 8 }}
-      volumes:
-        {{- include "oura.volumes" . | nindent 8 }}
+      {{- include "oura.podSpec" (dict "root" . "name" "backfill" "backfill" true) | nindent 6 }}
 {{- end }}

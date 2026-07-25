@@ -5,6 +5,10 @@ metadata:
   labels:
     {{- include "oura.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   schedule: {{ .Values.schedule | quote }}
   timeZone: {{ .Values.timeZone | quote }}
@@ -28,20 +32,4 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
         spec:
-          restartPolicy: Never
-          {{- with .Values.nodeSelector }}
-          nodeSelector:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.affinity }}
-          affinity:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.tolerations }}
-          tolerations:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          containers:
-            {{- include "oura.container" (dict "root" . "name" "collector" "backfill" false) | nindent 12 }}
-          volumes:
-            {{- include "oura.volumes" . | nindent 12 }}
+          {{- include "oura.podSpec" (dict "root" . "name" "collector" "backfill" false) | nindent 10 }}

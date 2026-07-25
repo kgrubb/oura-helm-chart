@@ -1,0 +1,22 @@
+suite: validation
+templates:
+  - validate.yaml
+tests:
+  - it: rejects leftover uv image repository from pre-1.0 releases
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      image.repository: ghcr.io/astral-sh/uv
+      image.tag: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: remove the old uv image override
+
+  - it: rejects leftover python3.12-alpine image tag from pre-1.0 releases
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      image.tag: python3.12-alpine
+    asserts:
+      - failedTemplate:
+          errorPattern: remove the old uv image override
