@@ -3,56 +3,35 @@
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/oura-helm)](https://artifacthub.io/packages/search?repo=oura-helm)
 [![CI](https://github.com/kgrubb/oura-helm-chart/actions/workflows/ci.yml/badge.svg)](https://github.com/kgrubb/oura-helm-chart/actions/workflows/ci.yml)
 
-Helm chart that syncs [Oura Ring](https://ouraring.com/) API v2 data into PostgreSQL on a schedule, with an optional Grafana dashboard.
+Helm chart that syncs [Oura Ring](https://ouraring.com/) API v2 data into PostgreSQL. It deploys a CronJob for scheduled collection (daily metrics, sleep, heart rate, workouts, and related tables) and refreshes Symptom Radar scores on each run.
 
-## TL;DR
+Optional features:
 
-```bash
-helm repo add kgrubb-oura https://kgrubb.github.io/oura-helm-chart
-helm repo update
-
-helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
-  --set quickstart.enabled=true \
-  --set postgres.host=postgres.postgres.svc.cluster.local \
-  --set postgres.bootstrap.admin.password='ADMIN_PASSWORD' \
-  --set postgres.password='APP_PASSWORD' \
-  --set postgres.passwordRo='RO_PASSWORD' \
-  --set auth.pat='OURA_PAT'
-```
-
-Packages are signed. Verify with the [public key](https://kgrubb.github.io/oura-helm-chart/public.key).
-
-## Introduction
-
-This chart deploys a CronJob that pulls Oura API v2 data into PostgreSQL (daily metrics, sleep, heart rate, workouts, and related tables). Each run also refreshes Symptom Radar scores.
-
-Optional pieces:
-
-- Database bootstrap (create database and app roles)
-- Grafana dashboard ConfigMap (sidecar-friendly labels)
+- Postgres bootstrap (database and roles)
+- Grafana dashboard ConfigMap (sidecar labels)
 - Grafana Postgres datasource Secret
 
-The chart does **not** install PostgreSQL or Grafana. Point it at instances you already run.
+PostgreSQL and Grafana are not installed by this chart. Point `postgres.host` at a database you already run.
+
+Chart packages are signed. Verify with the [public key](https://kgrubb.github.io/oura-helm-chart/public.key).
 
 ## Prerequisites
 
 - Kubernetes 1.25+
 - Helm 4
 - A reachable PostgreSQL server
-- An [Oura personal access token](https://cloud.ouraring.com/personal-access-tokens) (or OAuth client credentials)
+- An [Oura personal access token](https://cloud.ouraring.com/personal-access-tokens) or OAuth client credentials
 
 ## Installing the Chart
-
-Add the repository:
 
 ```bash
 helm repo add kgrubb-oura https://kgrubb.github.io/oura-helm-chart
 helm repo update
 ```
 
-### Option A — Quickstart
+### Quickstart
 
-Pass credentials as values. The chart creates Secrets, bootstraps the database, and enables the Grafana dashboard + datasource.
+Creates Secrets from values, bootstraps the database, and enables the Grafana dashboard and datasource:
 
 ```bash
 helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
@@ -64,11 +43,9 @@ helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
   --set auth.pat='OURA_PAT'
 ```
 
-Replace the passwords and PAT with your own. Set `postgres.host` to your Postgres service DNS name.
+Replace the passwords and PAT. Set `postgres.host` to your Postgres service DNS name.
 
-### Option B — Existing Secrets
-
-Create Secrets first, then install:
+### Existing Secrets
 
 ```bash
 kubectl -n monitoring create secret generic oura-db \
@@ -84,7 +61,7 @@ helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
   --set auth.existingSecret=oura-api
 ```
 
-With this path, turn on extras explicitly when you want them:
+Enable optional features explicitly when needed:
 
 ```bash
 helm upgrade --install oura kgrubb-oura/oura -n monitoring \
@@ -98,13 +75,11 @@ helm upgrade --install oura kgrubb-oura/oura -n monitoring \
   --set dashboard.datasource.password='RO_PASSWORD'
 ```
 
-The admin Secret must contain the key named by `postgres.bootstrap.admin.passwordKey` (default `password`). When `readOnlyUser` is set, the DB Secret must also contain `postgres.bootstrap.readOnlyPasswordKey` (default `password-ro`). `dashboard.createDatasource` embeds the password into a Grafana provisioning Secret, so set `dashboard.datasource.password` when the chart does not create the DB Secret.
+The admin Secret must include the key named by `postgres.bootstrap.admin.passwordKey` (default `password`). When `readOnlyUser` is set, the DB Secret must include `postgres.bootstrap.readOnlyPasswordKey` (default `password-ro`). With `dashboard.createDatasource` and an existing DB Secret, set `dashboard.datasource.password` so the chart can embed credentials in the Grafana provisioning Secret.
 
-Bootstrap creates roles with the passwords you supply on first install. Later upgrades do not rotate existing role passwords (so a `pre-upgrade` hook cannot get ahead of Secret updates). To change a password, update the Secret or values and run `ALTER ROLE ... PASSWORD` yourself (or recreate the role).
+Bootstrap creates roles on first install using the passwords you supply. Later upgrades do not rotate existing role passwords. To change a password, update the Secret or values and run `ALTER ROLE ... PASSWORD` (or recreate the role).
 
 ### Values file
-
-You can also install from a file:
 
 ```bash
 helm install oura kgrubb-oura/oura -n monitoring --create-namespace -f my-values.yaml
@@ -116,15 +91,15 @@ helm install oura kgrubb-oura/oura -n monitoring --create-namespace -f my-values
 helm uninstall oura -n monitoring
 ```
 
-Hook Jobs created by the chart are removed with the release. If you used OAuth mode with a token PVC (`persistence` + `helm.sh/resource-policy: keep`), delete that PVC separately if you no longer need it.
+Hook Jobs are removed with the release. In OAuth mode, a token PVC kept with `helm.sh/resource-policy: keep` must be deleted separately if you no longer need it.
 
 ## Upgrading from 0.x
 
-Clear any reused `image.repository=ghcr.io/astral-sh/uv` or `image.tag=python3.12-alpine` values before upgrading. The chart fails validation until those overrides are removed.
+Remove any reused `image.repository=ghcr.io/astral-sh/uv` or `image.tag=python3.12-alpine` values before upgrading. Chart validation fails until those overrides are cleared.
 
 ## Configuration
 
-See [charts/oura/values.yaml](charts/oura/values.yaml) for the full defaults. Common settings:
+Full defaults live in [charts/oura/values.yaml](charts/oura/values.yaml). Common settings:
 
 | Parameter | Description | Default |
 | --- | --- | --- |
@@ -132,7 +107,7 @@ See [charts/oura/values.yaml](charts/oura/values.yaml) for the full defaults. Co
 | `schedule` | Cron expression for the collector | `*/15 * * * *` |
 | `timeZone` | CronJob time zone | `UTC` |
 | `image.repository` | Collector image | `ghcr.io/kgrubb/oura-collector` |
-| `image.tag` | Image tag (`""` uses `appVersion`) | `""` |
+| `image.tag` | Image tag (empty uses `appVersion`) | `""` |
 | `postgres.host` | PostgreSQL hostname | `postgres` |
 | `postgres.database` | Database name | `oura` |
 | `postgres.user` | Application (read/write) role | `oura` |
@@ -151,17 +126,15 @@ See [charts/oura/values.yaml](charts/oura/values.yaml) for the full defaults. Co
 
 ### Authentication
 
-**PAT (default):** store the token under key `OURA_PAT` (or set `auth.pat` / `auth.patKey`).
+PAT (default): store the token under key `OURA_PAT`, or set `auth.pat` / `auth.patKey`.
 
-**OAuth:** set `auth.mode=oauth` and provide a Secret with client id/secret keys. The chart mounts a PVC for the refresh token JSON. Authorize the Oura app with:
+OAuth: set `auth.mode=oauth` and provide a Secret with client id and secret keys. The chart mounts a PVC for the refresh token JSON. Authorize the Oura app with:
 
 ```text
 email personal daily heartrate spo2 workout stress heart_health
 ```
 
 ### Historical backfill
-
-After a normal install, run a one-shot backfill:
 
 ```bash
 helm upgrade oura kgrubb-oura/oura -n monitoring \
@@ -170,7 +143,7 @@ helm upgrade oura kgrubb-oura/oura -n monitoring \
   --set backfill.startDate='2015-01-01'
 ```
 
-Disable `backfill.enabled` again after the Job finishes if you do not want it recreated on the next upgrade.
+Set `backfill.enabled=false` again after the Job finishes if you do not want it recreated on later upgrades.
 
 ## Development
 

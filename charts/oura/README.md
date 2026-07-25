@@ -2,9 +2,16 @@
 
 Helm chart that syncs [Oura Ring](https://ouraring.com/) API v2 data into PostgreSQL.
 
-Full install guide: [repository README](https://github.com/kgrubb/oura-helm-chart#readme).
+See the [repository README](https://github.com/kgrubb/oura-helm-chart#readme) for install options, upgrades, and authentication details.
 
-## TL;DR
+## Prerequisites
+
+- Kubernetes 1.25+
+- Helm 4
+- PostgreSQL
+- Oura PAT or OAuth credentials
+
+## Install
 
 ```bash
 helm repo add kgrubb-oura https://kgrubb.github.io/oura-helm-chart
@@ -19,18 +26,11 @@ helm install oura kgrubb-oura/oura -n monitoring --create-namespace \
   --set auth.pat='OURA_PAT'
 ```
 
-## Prerequisites
-
-- Kubernetes 1.25+
-- Helm 4
-- PostgreSQL
-- Oura PAT or OAuth credentials
-
 ## Configuration
 
 | Parameter | Description | Default |
 | --- | --- | --- |
-| `quickstart.enabled` | Create Secrets from values and enable bootstrap, dashboard, datasource | `false` |
+| `quickstart.enabled` | Create Secrets from values and enable bootstrap, dashboard, and datasource | `false` |
 | `schedule` | Collector cron expression | `*/15 * * * *` |
 | `postgres.host` | PostgreSQL hostname | `postgres` |
 | `postgres.existingSecret` | DB password Secret (or set `postgres.password`) | `""` |
