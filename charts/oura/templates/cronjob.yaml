@@ -19,6 +19,9 @@ spec:
     spec:
       backoffLimit: {{ .Values.backoffLimit }}
       activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
+      {{- if .Values.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
+      {{- end }}
       template:
         metadata:
           {{- with .Values.podAnnotations }}
