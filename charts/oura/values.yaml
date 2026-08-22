@@ -13,8 +13,10 @@ imagePullSecrets: []
 schedule: "*/15 * * * *"
 timeZone: UTC
 concurrencyPolicy: Forbid
-successfulJobsHistoryLimit: 2
-failedJobsHistoryLimit: 3
+successfulJobsHistoryLimit: 1
+failedJobsHistoryLimit: 1
+# Drop finished CronJob pods so a terminating token PVC is not held forever.
+ttlSecondsAfterFinished: 3600
 activeDeadlineSeconds: 7200
 backoffLimit: 1
 

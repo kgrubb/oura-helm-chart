@@ -34,3 +34,13 @@ tests:
       - equal:
           path: spec.jobTemplate.spec.template.spec.containers[0].image
           value: ghcr.io/kgrubb/oura-collector:9.9.9
+
+  - it: sets ttlSecondsAfterFinished on CronJob jobs
+    set:
+      postgres.existingSecret: db
+      auth.existingSecret: api
+      ttlSecondsAfterFinished: 3600
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.ttlSecondsAfterFinished
+          value: 3600

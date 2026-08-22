@@ -2,7 +2,7 @@ apiVersion: v2
 name: oura
 description: Sync Oura Ring API v2 data into PostgreSQL
 type: application
-version: 1.0.0
+version: 1.0.1
 appVersion: "1.0.0"
 home: https://github.com/kgrubb/oura-helm-chart
 icon: https://kgrubb.github.io/oura-helm-chart/logo.svg
