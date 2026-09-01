@@ -552,7 +552,7 @@
     {
       "type": "table",
       "title": "Symptom Radar contributors",
-      "id": 32,
+      "id": 34,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -825,7 +825,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 22
       },
       "collapsed": false,
       "panels": [],
@@ -839,7 +839,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 15
+        "y": 23
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -867,7 +867,7 @@
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 15
+        "y": 23
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -957,7 +957,7 @@
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 15
+        "y": 23
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1030,7 +1030,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 15
+        "y": 23
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1118,7 +1118,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 31
       },
       "collapsed": false,
       "panels": [],
@@ -1132,7 +1132,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 32
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1190,7 +1190,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 32
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1255,7 +1255,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 33
+        "y": 41
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1301,7 +1301,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 33
+        "y": 41
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1344,7 +1344,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 41
+        "y": 49
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1387,7 +1387,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 41
+        "y": 49
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1431,7 +1431,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 49
+        "y": 57
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1475,7 +1475,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 49
+        "y": 57
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1521,7 +1521,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 65
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1564,7 +1564,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 57
+        "y": 65
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
