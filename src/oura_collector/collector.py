@@ -382,13 +382,17 @@ def _pick_sleep(rows: list) -> tuple | None:
     return max(pool, key=lambda r: r[5] or 0) if pool else None
 
 
-def compute_symptom_radar(conn, from_day: date | None = None) -> int:
-    """Score one row per readiness day (Oura's day), joining sleep vitals when present.
+def _as_float(val: Any) -> float | None:
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
 
-    Readiness often lands before sleep for the same calendar day; keying only on
-    sleep left Grafana stuck on yesterday's radar while the Oura app already
-    showed today's status.
-    """
+
+def compute_symptom_radar(conn, from_day: date | None = None) -> int:
+    """Score one row per readiness day, joining sleep RR when present."""
     start = from_day or (date.today() - timedelta(days=RECENT_DAYS))
     with conn.cursor() as cur:
         cur.execute(
@@ -399,41 +403,41 @@ def compute_symptom_radar(conn, from_day: date | None = None) -> int:
         by_day: dict[date, list] = {}
         for row in cur.fetchall():
             by_day.setdefault(row[0], []).append(row)
-        cur.execute("SELECT day, temperature_deviation, temperature_trend_deviation FROM daily_readiness")
-        readiness = {d: (t, tr) for d, t, tr in cur.fetchall()}
-        cur.execute(
-            """SELECT day,
-                      COALESCE(sedentary_time, NULLIF(raw->>'sedentary_time','')::double precision)
-               FROM daily_activity"""
-        )
-        sedentary = {d: s for d, s in cur.fetchall()}
+        cur.execute("SELECT day, temperature_deviation, temperature_trend_deviation, contributors FROM daily_readiness")
+        readiness: dict[date, tuple] = {}
+        for d, temp, _trend, raw_contrib in cur.fetchall():
+            c = raw_contrib if isinstance(raw_contrib, dict) else {}
+            readiness[d] = (temp, c)
 
-    # Score by readiness day (matches the Oura app); include sleep-only days as fallback.
     days = sorted(set(readiness) | set(by_day))
     nights = []
     for d in days:
         pick = _pick_sleep(by_day.get(d, []))
-        temp, trend = readiness.get(d, (None, None))
-        if temp is None and trend is None and pick is None:
+        temp, contrib = readiness.get(d, (None, {}))
+        if temp is None and not contrib and pick is None:
             continue
         nights.append(
             Night(
                 day=d,
+                body_temperature=_as_float(contrib.get("body_temperature")),
+                hrv_balance=_as_float(contrib.get("hrv_balance")),
+                resting_heart_rate=_as_float(contrib.get("resting_heart_rate")),
+                recovery_index=_as_float(contrib.get("recovery_index")),
+                previous_day_activity=_as_float(contrib.get("previous_day_activity")),
                 temp=temp,
-                trend=trend,
-                rhr=pick[2] if pick else None,
-                hrv=pick[3] if pick else None,
                 rr=pick[4] if pick else None,
-                inactive=sedentary.get(d - timedelta(days=1)),
             )
         )
 
     n = 0
+    prev_level: str | None = None
     with conn.cursor() as cur:
         for i, night in enumerate(nights):
             if night.day < start:
+                prev_level = score_night(night, nights[:i], prev_level)["level"]
                 continue
-            r = score_night(night, nights[:i])
+            r = score_night(night, nights[:i], prev_level)
+            prev_level = r["level"]
             cur.execute(
                 """INSERT INTO symptom_radar_daily (
                      day, level, score, n_baseline_nights, n_signals, contributors,
@@ -595,7 +599,6 @@ def main() -> None:
         tok = sync_sleep(conn, tok)
         tok = sync_workout(conn, tok)
         sync_heartrate(conn, tok)
-        # Recompute a long window so scoring changes refresh historical rows.
         radar_from = date.fromisoformat(START_DATE) if BACKFILL else date.today() - timedelta(days=120)
         compute_symptom_radar(conn, radar_from)
     log.info("done")

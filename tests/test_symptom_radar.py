@@ -1,76 +1,102 @@
-"""Boundary tests for Symptom Radar scoring."""
+"""Tests for Symptom Radar v4."""
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
+from pathlib import Path
 
-from oura_collector.symptom_radar import Night, score_night
+import pytest
 
+from oura_collector.symptom_radar import ALGO, Night, score_night
 
-def _hist(n: int = 20, base: date | None = None, **kw: float) -> list[Night]:
-    end = (base or date.today()) - timedelta(days=4)
-    out: list[Night] = []
-    for i in range(n):
-        day = end - timedelta(days=n - 1 - i)
-        out.append(
-            Night(
-                day=day,
-                temp=kw.get("temp", 0.0),
-                trend=kw.get("trend", 0.0),
-                rhr=kw.get("rhr", 55.0),
-                hrv=kw.get("hrv", 50.0),
-                rr=kw.get("rr", 14.0),
-                inactive=kw.get("inactive", 36000.0),
-            )
-        )
-    return out
+FIXTURES = Path(__file__).parent / "fixtures" / "symptom_radar_ground_truth.json"
 
 
-def _fill_gate(hist: list[Night], day: date) -> None:
-    for i in range(10):
-        hist.append(
-            Night(
-                day=day - timedelta(days=10 - i),
-                temp=0.0,
-                trend=0.0,
-                rhr=55,
-                hrv=50,
-                rr=14,
-                inactive=36000,
-            )
-        )
+def _healthy_night(day: date, rr: float = 14.75) -> Night:
+    return Night(
+        day=day,
+        body_temperature=92.0,
+        hrv_balance=88.0,
+        resting_heart_rate=88.0,
+        recovery_index=85.0,
+        previous_day_activity=88.0,
+        temp=0.0,
+        rr=rr,
+    )
 
 
-def test_insufficient_data() -> None:
-    day = date(2026, 7, 20)
-    night = Night(day=day, temp=0.6, rhr=60, hrv=40, rr=15)
-    assert score_night(night, [])["level"] == "insufficient_data"
+def _build_history(scored_day: date, rr_baseline: float = 14.75) -> list[Night]:
+    hist: list[Night] = []
+    end = scored_day - timedelta(days=4)
+    for i in range(35):
+        d = end - timedelta(days=34 - i)
+        hist.append(_healthy_night(d, rr=rr_baseline))
+    return hist
+
+
+def _night_from_dict(data: dict) -> Night:
+    return Night(
+        day=date.fromisoformat(data["day"]),
+        body_temperature=data.get("body_temperature"),
+        hrv_balance=data.get("hrv_balance"),
+        resting_heart_rate=data.get("resting_heart_rate"),
+        recovery_index=data.get("recovery_index"),
+        previous_day_activity=data.get("previous_day_activity"),
+        temp=data.get("temp"),
+        rr=data.get("rr"),
+    )
+
+
+def _load_cases() -> list[dict]:
+    return json.loads(FIXTURES.read_text())["cases"]
+
+
+@pytest.mark.parametrize("case", _load_cases(), ids=lambda c: c["label"])
+def test_scoring_cases(case: dict) -> None:
+    night = _night_from_dict(case["night"])
+    n_hist = case.get("history_nights", 35)
+    if n_hist < 10:
+        history = [_healthy_night(night.day - timedelta(days=i + 1)) for i in range(n_hist)]
+    else:
+        rr_base = case.get("rr_baseline", case["night"].get("rr", 14.75))
+        history = _build_history(night.day, rr_baseline=rr_base)
+    result = score_night(night, history)
+    assert result["level"] == case["expected"], (
+        f"{case['label']}: expected {case['expected']}, got {result['level']} "
+        f"(score={result['score']}, signals={result['contributors']})"
+    )
+
+
+def test_insufficient_data_empty_history() -> None:
+    day = date(2026, 3, 20)
+    night = Night(day=day, body_temperature=90, temp=0.6, rr=15)
+    result = score_night(night, [])
+    assert result["level"] == "insufficient_data"
+    assert result["algorithm_version"] == ALGO
 
 
 def test_none_healthy() -> None:
-    day = date(2026, 7, 20)
-    hist = _hist(20, base=day)
-    _fill_gate(hist, day)
-    night = Night(day=day, temp=0.0, trend=0.0, rhr=55, hrv=50, rr=14, inactive=36000)
-    result = score_night(night, hist)
+    day = date(2026, 3, 20)
+    hist = _build_history(day)
+    result = score_night(_healthy_night(day), hist)
     assert result["level"] == "none"
     assert result["summary_text"] == "no signs"
-    assert result["algorithm_version"] == "v3"
+    assert result["algorithm_version"] == ALGO
 
 
-def test_jul22_style_is_minor() -> None:
-    day = date(2026, 7, 20)
-    hist = _hist(20, base=day)
-    _fill_gate(hist, day)
-    night = Night(day=day, temp=0.3, trend=0.11, rhr=60, hrv=45, rr=14, inactive=36000)
-    assert score_night(night, hist)["level"] == "minor"
-
-
-def test_temp_and_trend_major() -> None:
-    day = date(2026, 7, 20)
-    hist = _hist(20, base=day)
-    _fill_gate(hist, day)
-    night = Night(day=day, temp=0.45, trend=0.30, rhr=55, hrv=50, rr=14, inactive=36000)
-    result = score_night(night, hist)
-    assert result["level"] == "major"
-    assert result["summary_text"] == "Major signs"
+def test_persistence_escalates() -> None:
+    day = date(2026, 4, 13)
+    hist = _build_history(day)
+    night = Night(
+        day=day,
+        body_temperature=100,
+        hrv_balance=82,
+        resting_heart_rate=71,
+        recovery_index=40,
+        previous_day_activity=77,
+        temp=-0.13,
+        rr=14.375,
+    )
+    assert score_night(night, hist)["level"] == "none"
+    assert score_night(night, hist, prev_level="minor")["level"] == "minor"

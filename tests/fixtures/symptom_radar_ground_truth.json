@@ -1,0 +1,174 @@
+{
+  "cases": [
+    {
+      "label": "insufficient_data",
+      "expected": "insufficient_data",
+      "history_nights": 3,
+      "night": {
+        "day": "2026-03-10",
+        "body_temperature": 90,
+        "hrv_balance": 85,
+        "resting_heart_rate": 80,
+        "recovery_index": 90,
+        "previous_day_activity": 85,
+        "temp": 0.0,
+        "rr": 14.75
+      }
+    },
+    {
+      "label": "multi_signal_minor",
+      "expected": "minor",
+      "night": {
+        "day": "2026-03-18",
+        "body_temperature": 72,
+        "hrv_balance": 78,
+        "resting_heart_rate": 66,
+        "recovery_index": 97,
+        "previous_day_activity": 86,
+        "temp": 0.4,
+        "rr": 15.0
+      }
+    },
+    {
+      "label": "depressed_rhr_recovery_minor",
+      "expected": "minor",
+      "night": {
+        "day": "2026-03-22",
+        "body_temperature": 81,
+        "hrv_balance": 78,
+        "resting_heart_rate": 48,
+        "recovery_index": 46,
+        "previous_day_activity": 77,
+        "temp": 0.3,
+        "rr": 15.0
+      }
+    },
+    {
+      "label": "rr_spike_alone_none",
+      "expected": "none",
+      "rr_baseline": 14.75,
+      "night": {
+        "day": "2026-03-26",
+        "body_temperature": 100,
+        "hrv_balance": 88,
+        "resting_heart_rate": 100,
+        "recovery_index": 90,
+        "previous_day_activity": 90,
+        "temp": -0.13,
+        "rr": 15.5
+      }
+    },
+    {
+      "label": "single_low_rhr_contributor_none",
+      "expected": "none",
+      "night": {
+        "day": "2026-03-29",
+        "body_temperature": 100,
+        "hrv_balance": 91,
+        "resting_heart_rate": 39,
+        "recovery_index": 88,
+        "previous_day_activity": 83,
+        "temp": -0.03,
+        "rr": 15.0
+      }
+    },
+    {
+      "label": "healthy_contributors_none",
+      "expected": "none",
+      "night": {
+        "day": "2026-04-07",
+        "body_temperature": 100,
+        "hrv_balance": 87,
+        "resting_heart_rate": 67,
+        "recovery_index": 37,
+        "previous_day_activity": 85,
+        "temp": -0.11,
+        "rr": 14.875
+      }
+    },
+    {
+      "label": "single_depressed_rhr_none",
+      "expected": "none",
+      "night": {
+        "day": "2026-04-12",
+        "body_temperature": 99,
+        "hrv_balance": 80,
+        "resting_heart_rate": 43,
+        "recovery_index": 72,
+        "previous_day_activity": 81,
+        "temp": -0.16,
+        "rr": 14.375
+      }
+    },
+    {
+      "label": "borderline_contributors_none",
+      "expected": "none",
+      "night": {
+        "day": "2026-04-13",
+        "body_temperature": 100,
+        "hrv_balance": 82,
+        "resting_heart_rate": 71,
+        "recovery_index": 40,
+        "previous_day_activity": 77,
+        "temp": -0.13,
+        "rr": 14.375
+      }
+    },
+    {
+      "label": "mild_temp_rhr_none",
+      "expected": "none",
+      "night": {
+        "day": "2026-04-16",
+        "body_temperature": 83,
+        "hrv_balance": 78,
+        "resting_heart_rate": 62,
+        "recovery_index": 45,
+        "previous_day_activity": 88,
+        "temp": 0.27,
+        "rr": 15.25
+      }
+    },
+    {
+      "label": "elevated_trend_contributor_ok_none",
+      "expected": "none",
+      "night": {
+        "day": "2026-04-19",
+        "body_temperature": 90,
+        "hrv_balance": 85,
+        "resting_heart_rate": 91,
+        "recovery_index": 22,
+        "previous_day_activity": 85,
+        "temp": 0.18,
+        "rr": 14.75
+      }
+    },
+    {
+      "label": "healthy_baseline_none",
+      "expected": "none",
+      "night": {
+        "day": "2026-03-20",
+        "body_temperature": 94,
+        "hrv_balance": 84,
+        "resting_heart_rate": 76,
+        "recovery_index": 70,
+        "previous_day_activity": 80,
+        "temp": 0.13,
+        "rr": 14.625
+      }
+    },
+    {
+      "label": "multi_signal_major",
+      "expected": "major",
+      "night": {
+        "day": "2026-03-20",
+        "body_temperature": 65,
+        "hrv_balance": 55,
+        "resting_heart_rate": 40,
+        "recovery_index": 35,
+        "previous_day_activity": 50,
+        "temp": 0.5,
+        "rr": 16.0
+      }
+    }
+  ]
+}

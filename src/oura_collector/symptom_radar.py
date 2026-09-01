@@ -1,7 +1,6 @@
-"""Symptom Radar: overnight biometric baseline scoring (v3).
+"""Symptom Radar v4: readiness-contributor scoring with raw temp and RR supplements.
 
-Calibrated against labeled nights. Uses temp, temp trend, RHR, HRV, RR,
-and previous-day sedentary time.
+Approximates Oura Symptom Radar from API data. Not a replica of the on-device model.
 """
 
 from __future__ import annotations
@@ -11,28 +10,45 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
-ALGO = "v3"
+ALGO = "v4"
 BASELINE_NIGHTS = 28
 GAP_DAYS = 3
 MIN_NIGHTS_14D = 7
+
+_CONTRIBUTOR_SIGNALS = (
+    "body_temperature",
+    "hrv_balance",
+    "resting_heart_rate",
+    "recovery_index",
+    "previous_day_activity",
+)
+
+_CONTRIBUTOR_THRESHOLDS: dict[str, tuple[tuple[int, int], ...]] = {
+    "body_temperature": ((85, 0), (70, 1), (0, 2)),
+    "hrv_balance": ((85, 0), (70, 1), (0, 2)),
+    "resting_heart_rate": ((75, 0), (55, 1), (0, 2)),
+    "recovery_index": ((65, 0), (35, 1), (0, 2)),
+    "previous_day_activity": ((85, 0), (75, 1), (0, 2)),
+}
 
 _LEVEL_LABEL = {
     "none": "no signs",
     "minor": "Minor Signs",
     "major": "Major signs",
-    "insufficient_data": "—",
+    "insufficient_data": "n/a",
 }
 
 
 @dataclass(frozen=True)
 class Night:
     day: date
+    body_temperature: float | None = None
+    hrv_balance: float | None = None
+    resting_heart_rate: float | None = None
+    recovery_index: float | None = None
+    previous_day_activity: float | None = None
     temp: float | None = None
-    trend: float | None = None  # temperature_trend_deviation
-    rhr: float | None = None
-    hrv: float | None = None
     rr: float | None = None
-    inactive: float | None = None  # previous calendar day sedentary_time
 
 
 def _median(xs: list[float]) -> float:
@@ -58,17 +74,32 @@ def _z(value: float | None, base: list[float]) -> float | None:
     return (value - _median(base)) / sig
 
 
-def _level(score: int, n_signals: int, ok: bool) -> str:
+def _contributor_points(signal: str, value: float | None) -> int:
+    if value is None:
+        return 0
+    for floor, points in _CONTRIBUTOR_THRESHOLDS.get(signal, ((85, 0), (70, 1), (0, 2))):
+        if value >= floor:
+            return points
+    return 0
+
+
+def _level(score: int, n_signals: int, ok: bool, prev_level: str | None) -> str:
     if not ok:
         return "insufficient_data"
-    if score >= 4 and n_signals >= 1:
+    if score >= 8 and n_signals >= 3:
         return "major"
-    if score >= 2:
+    if score >= 5 and n_signals >= 2:
+        return "minor"
+    if score >= 3 and n_signals >= 2 and prev_level in ("minor", "major"):
         return "minor"
     return "none"
 
 
-def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
+def score_night(
+    night: Night,
+    history: list[Night],
+    prev_level: str | None = None,
+) -> dict[str, Any]:
     gate_start = night.day - timedelta(days=13)
     recent = [h for h in history if gate_start <= h.day < night.day]
     ok = len(recent) >= MIN_NIGHTS_14D
@@ -84,96 +115,53 @@ def score_night(night: Night, history: list[Night]) -> dict[str, Any]:
     contrib: list[dict] = []
     score = 0
 
-    def add(signal: str, value: float | None, base_vals: list[float], points: int) -> None:
+    def add(signal: str, value: float | None, points: int, **extra: Any) -> None:
         nonlocal score
         if points <= 0 or value is None:
             return
-        z = _z(value, base_vals) if len(base_vals) >= 2 else None
-        contrib.append(
-            {
-                "signal": signal,
-                "value": value,
-                "baseline": _median(base_vals) if base_vals else None,
-                "z": round(z, 3) if z is not None else None,
-                "points": points,
-            }
-        )
+        entry: dict[str, Any] = {"signal": signal, "value": value, "points": points}
+        entry.update(extra)
+        contrib.append(entry)
         score += points
 
-    temp_b, trend_b, rhr_b, hrv_b, rr_b, ina_b = (
-        series("temp"),
-        series("trend"),
-        series("rhr"),
-        series("hrv"),
-        series("rr"),
-        series("inactive"),
-    )
+    for signal in _CONTRIBUTOR_SIGNALS:
+        value = getattr(night, signal)
+        add(signal, value, _contributor_points(signal, value))
 
-    # Skin temperature deviation (°C)
-    tz = _z(night.temp, temp_b)
-    tp = 0
-    if night.temp is not None:
-        if night.temp >= 0.45 or (tz is not None and tz >= 2.5):
+    if (
+        night.body_temperature is not None
+        and night.hrv_balance is not None
+        and night.body_temperature < 80
+        and night.hrv_balance < 80
+    ):
+        add("pattern", 1.0, 1)
+
+    if night.temp is not None and night.body_temperature is not None:
+        tp = 0
+        if night.temp >= 0.45 and night.body_temperature < 80:
             tp = 2
-        elif night.temp >= 0.25 or (tz is not None and tz >= 1.5):
+        elif night.temp >= 0.35 and night.body_temperature < 85:
             tp = 1
-    add("temp", night.temp, temp_b, tp)
+        add("temp", night.temp, tp)
 
-    # Temperature trend deviation
-    trz = _z(night.trend, trend_b)
-    trp = 0
-    if night.trend is not None:
-        if night.trend >= 0.25 or (trz is not None and trz >= 2.5):
-            trp = 2
-        elif trz is not None and trz >= 1.5:
-            trp = 1
-    add("trend", night.trend, trend_b, trp)
-
-    # Resting HR ↑
-    rz = _z(night.rhr, rhr_b)
-    rp = 0
-    if night.rhr is not None:
-        med = _median(rhr_b) if rhr_b else None
-        if (rz is not None and rz >= 1.75) or (med is not None and night.rhr >= med + 7):
-            rp = 2
-        elif (rz is not None and rz >= 1.25) or (med is not None and night.rhr >= med + 3):
-            rp = 1
-    add("rhr", night.rhr, rhr_b, rp)
-
-    # HRV ↓
-    hz = _z(night.hrv, hrv_b)
-    hp = 0
-    if night.hrv is not None:
-        med = _median(hrv_b) if hrv_b else None
-        if (hz is not None and hz <= -1.75) or (med and night.hrv <= med * 0.75):
-            hp = 2
-        elif (hz is not None and hz <= -1.25) or (med and night.hrv <= med * 0.90):
-            hp = 1
-    add("hrv", night.hrv, hrv_b, hp)
-
-    # Respiratory rate ↑
+    rr_b = series("rr")
     rrz = _z(night.rr, rr_b)
     rrp = 0
     if night.rr is not None:
-        med = _median(rr_b) if rr_b else None
-        if (rrz is not None and rrz >= 2.0) or (med is not None and night.rr >= med + 1.5):
+        if rrz is not None and rrz >= 2.5:
             rrp = 2
-        elif (rrz is not None and rrz >= 1.5) or (med is not None and night.rr >= med + 1.0):
+        elif rrz is not None and rrz >= 2.0:
             rrp = 1
-    add("rr", night.rr, rr_b, rrp)
-
-    # Previous-day sedentary time ↑
-    iz = _z(night.inactive, ina_b)
-    ip = 0
-    if night.inactive is not None and iz is not None:
-        if iz >= 1.75:
-            ip = 2
-        elif iz >= 1.0:
-            ip = 1
-    add("inactive", night.inactive, ina_b, ip)
+        add(
+            "rr",
+            night.rr,
+            rrp,
+            baseline=_median(rr_b) if rr_b else None,
+            z=round(rrz, 3) if rrz is not None else None,
+        )
 
     fired = [c for c in contrib if c["points"] > 0]
-    level = _level(score, len(fired), ok)
+    level = _level(score, len(fired), ok, prev_level)
 
     return {
         "day": night.day,

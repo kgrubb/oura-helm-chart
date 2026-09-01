@@ -353,7 +353,7 @@
         "graphMode": "none",
         "textMode": "value"
       },
-      "description": "Signs your body may be under extra strain, based on last night's data."
+      "description": "API-based Symptom Radar approximation (v4). Uses readiness contributors plus raw temp/RR signals. May differ from the Oura app."
     },
     {
       "type": "stat",
@@ -548,6 +548,46 @@
         ]
       },
       "description": "Recent Symptom Radar results by day."
+    },
+    {
+      "type": "table",
+      "title": "Symptom Radar contributors",
+      "id": 32,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "__OURA_DS__"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  to_char(day, 'Mon FMDD') AS \"Day\",\n  level AS \"Level\",\n  score AS \"Score\",\n  contributors::text AS \"Contributors\"\nFROM symptom_radar_daily\nORDER BY day DESC\nLIMIT 14"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "filterable": false
+          }
+        },
+        "overrides": []
+      },
+      "description": "API-based Symptom Radar approximation (v4). Shows scoring signals for debugging mismatches with the Oura app."
     },
     {
       "type": "bargauge",
