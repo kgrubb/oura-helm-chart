@@ -353,7 +353,7 @@
         "graphMode": "none",
         "textMode": "value"
       },
-      "description": "API-based Symptom Radar approximation (v4). Uses readiness contributors plus raw temp/RR signals. May differ from the Oura app."
+      "description": "Signs your body may be under extra strain, based on last night's data."
     },
     {
       "type": "stat",
@@ -587,7 +587,7 @@
         },
         "overrides": []
       },
-      "description": "API-based Symptom Radar approximation (v4). Shows scoring signals for debugging mismatches with the Oura app."
+      "description": "Recent Symptom Radar scores and which signals contributed to each day's result."
     },
     {
       "type": "bargauge",
