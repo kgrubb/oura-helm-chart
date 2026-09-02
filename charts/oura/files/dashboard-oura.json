@@ -550,6 +550,46 @@
       "description": "Recent Symptom Radar results by day."
     },
     {
+      "type": "table",
+      "title": "Symptom Radar contributors",
+      "id": 34,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "__OURA_DS__"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  to_char(day, 'Mon FMDD') AS \"Day\",\n  level AS \"Level\",\n  score AS \"Score\",\n  contributors::text AS \"Contributors\"\nFROM symptom_radar_daily\nORDER BY day DESC\nLIMIT 14"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "filterable": false
+          }
+        },
+        "overrides": []
+      },
+      "description": "Recent Symptom Radar scores and which signals contributed to each day's result."
+    },
+    {
       "type": "bargauge",
       "title": "Readiness factors",
       "id": 22,
@@ -785,7 +825,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 22
       },
       "collapsed": false,
       "panels": [],
@@ -799,7 +839,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 15
+        "y": 23
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -827,7 +867,7 @@
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 15
+        "y": 23
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -917,7 +957,7 @@
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 15
+        "y": 23
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -990,7 +1030,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 15
+        "y": 23
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1078,7 +1118,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 31
       },
       "collapsed": false,
       "panels": [],
@@ -1092,7 +1132,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 32
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1150,7 +1190,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 32
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1215,7 +1255,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 33
+        "y": 41
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1261,7 +1301,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 33
+        "y": 41
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1304,7 +1344,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 41
+        "y": 49
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1347,7 +1387,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 41
+        "y": 49
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1391,7 +1431,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 49
+        "y": 57
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1435,7 +1475,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 49
+        "y": 57
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1481,7 +1521,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 65
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1524,7 +1564,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 57
+        "y": 65
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
