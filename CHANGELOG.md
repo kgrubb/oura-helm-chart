@@ -4,6 +4,16 @@ All notable changes to this chart are documented here.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-02
+
+### Added
+- Replaces Symptom Radar v3 raw sleep-vital z-scores with v4 scoring from readiness contributors (`body_temperature`, `hrv_balance`, `resting_heart_rate`, `recovery_index`, `previous_day_activity`), plus conservative raw temp and RR supplements. ([#3](https://github.com/kgrubb/oura-helm-chart/pull/3))
+- Tightens level gates (minor/major require multiple signals) and adds day-over-day persistence so isolated blips stay `none`. ([#3](https://github.com/kgrubb/oura-helm-chart/pull/3))
+- Loads contributor fields in the collector and passes `prev_level` through the scoring loop. ([#3](https://github.com/kgrubb/oura-helm-chart/pull/3))
+- Adds fixture-driven regression tests and a Grafana contributors table panel for debugging. ([#3](https://github.com/kgrubb/oura-helm-chart/pull/3))
+
+
+
 ## [1.0.0] - 2026-07-25
 
 ### Added

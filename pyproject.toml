@@ -1,6 +1,6 @@
 [project]
 name = "oura-collector"
-version = "1.0.0"
+version = "1.1.0"
 description = "Sync Oura Ring API v2 data into PostgreSQL"
 readme = "README.md"
 requires-python = ">=3.14"
